@@ -33,3 +33,19 @@ something say so ("excludes 1 holding without a price").
    Accepted differences stay visible in the reconciliation history.
 
 Default tolerances: quantity 0.0001, cash 0.01 of the currency; editable per account.
+
+## Opening positions (D-24)
+Positions and cash held before an account's first exported activity. Entered in the UI or imported from a CSV
+(the real file stays in `data/`, D-20). Format, with invented values:
+
+```csv
+account_number,date,kind,symbol,exchange,quantity,price,amount,currency,note
+12345678,2021-01-15,position,ABC,TSX,100,20.00,,CAD,bought before history starts
+12345678,2021-01-15,cash,,,,,12.34,CAD,cash left before history starts
+```
+
+- `kind = position`: TRANSFER_IN of `quantity` at `price` (cost = quantity x price; empty price -> estimated cost,
+  D-31). `kind = cash`: cash TRANSFER_IN of `amount`. Both have `origin = 'opening_balance'`.
+- Both are external flows on `date` (positions at cost, which equals market value on a purchase date).
+- Symbols are as of `date`; later symbol changes apply normally.
+- Re-importing the file replaces earlier opening rows of the same account (they are the only rows with that origin).

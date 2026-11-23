@@ -38,7 +38,7 @@ Purpose: prove the numbers are right, not just that screens render (PRD amendmen
 | synthetic/xirr | textbook cash flows with known IRR |
 | synthetic/duplicates | re-import overlap and two legitimate identical trades (D-8) |
 | synthetic/stale_data | missing price/FX -> flags, no zeros |
-| synthetic/history_gap | sale before any buy, late first transaction -> negative_holding, history_gap_start, fixed by opening positions |
+| synthetic/history_gap | sale before any buy, late first transaction -> negative_holding, history_gap_start, fixed by an opening-positions CSV |
 
 Each fixture folder holds `input/` files and `expected/*.json`. A failing test prints the first differing field.
 

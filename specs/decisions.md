@@ -198,8 +198,9 @@ and they turn into an internal transfer.
 Each account has `opened_on`. After every import, a data-quality check compares it with the earliest transaction of
 the account: a gap of more than 31 days raises `history_gap_start`, and any position or cash that cannot be
 explained (e.g. a sale without a prior buy) raises `negative_holding`. The fix is a fuller export or **opening
-positions**: the user enters security, quantity, cost and date (cash too), stored as TRANSFER_IN rows with
-`origin = 'opening_balance'`, external flows at market value on that date (FR-2 migration metadata).
+positions**: security, quantity, cost and date (cash too), entered in the UI or imported from a CSV (format in
+`specs/data-quality.md`), stored as TRANSFER_IN rows with `origin = 'opening_balance'`, external flows on that
+date (FR-2 migration metadata). Oliver's opening positions are in `data/opening-positions.csv` (private).
 
 ### D-25 Questrade format stability
 Questrade's activity export keeps one column layout across date ranges and accounts (confirmed with the
@@ -240,6 +241,5 @@ it later (a correction, D-7).
 
 ## Open questions
 
-- Q-14 Opening positions are needed for three accounts whose history starts with shares already held (details in
-  chat). For each: provide date and cost, or accept the estimated-cost default (D-31)?
-- Q-15 GitHub access for this session (owner and repo name of the private repository).
+- Q-15 GitHub: create the private repository and attach it to this session with push access (details in chat).
+- Q-16 Two small opening cash amounts were inferred from reconciliation (details in chat): confirm or correct.
