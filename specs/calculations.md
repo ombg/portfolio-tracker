@@ -16,9 +16,13 @@ Running state per (account, security): `qty`, `cost_native`, `cost_rc`.
 | --- | --- | --- | --- |
 | BUY, DRIP | + q | + q*price + commission | + (q*price + commission) * fx_trade |
 | SELL | - q | - q * avg_native | - q * avg_rc |
-| TRANSFER_IN (in kind) | + q | + market value at date (or carried cost if internal) | same in rc |
+| TRANSFER_IN (in kind) | + q | + broker-reported value, else market value at date (carried cost if internal) | same in rc |
 | TRANSFER_OUT (in kind) | - q | - q * avg_native | - q * avg_rc |
 | SPLIT ratio k | * k | unchanged | unchanged |
+| SPLIT delta n (quantity adjustment) | + n | unchanged | unchanged |
+| SYMBOL_CHANGE | unchanged | unchanged | unchanged (same security, new symbol) |
+| JOURNAL (CAD/USD side move) | unchanged (legs net to zero) | unchanged | unchanged |
+| GIC BUY / redemption (D-26) | +/- principal units | at 1.00 per unit | at 1.00 per unit |
 | RETURN_OF_CAPITAL | 0 | - amount | - amount * fx |
 | MERGER / SPIN_OFF | per event cost allocation | | |
 
@@ -30,18 +34,18 @@ Aggregate security view: sum qty and cost across accounts; `avg = sum cost / sum
 
 ## Cash
 Per account and currency, the sum of cash effects: BUY -(gross+commission), SELL +net, DIVIDEND/INTEREST +net,
-WITHHOLDING_TAX -, FEE -, DEPOSIT +, WITHDRAWAL -, TRANSFER cash legs +/-, FX_CONVERSION legs in their own
+WITHHOLDING_TAX -, FEE - (a negative fee, i.e. a refund, adds cash), DEPOSIT +, WITHDRAWAL -, TRANSFER cash legs +/-, FX_CONVERSION legs in their own
 currency. When the broker provides `net_amount`, it is authoritative for cash.
 
 ## Valuation (FR-6)
-`market_value_rc = qty * price * fx(security currency -> rc)`. Price = user override > latest provider price.
+`market_value_rc = qty * price * fx(security currency -> rc)`. GICs: price 1.00 (principal, D-26). Price = user override > latest provider price.
 FX = user override > Bank of Canada daily (history) / Yahoo intraday (today). Missing price or FX: last known value
 carried forward with flag `stale_price` / `stale_fx`; if none ever known, value is NULL and shown as "No price".
 
 ## Time-weighted return (FR-9, D-4)
 Per day d, for the scope's accounts:
 - `V_d` = market value + cash at end of day, in rc.
-- `F_d` = external flows on day d (DEPOSIT +, WITHDRAWAL -, transfers crossing the scope boundary +/-).
+- `F_d` = external flows on day d (DEPOSIT +, WITHDRAWAL -, GRANT +, transfers crossing the scope boundary +/-).
 
 ```
 r_d  = V_d / (V_{d-1} + F_d) - 1
@@ -50,6 +54,8 @@ annualised (period > 365 days) = (1 + TWR)^(365 / days) - 1
 ```
 
 - Days where `V_{d-1} + F_d = 0` are skipped (no capital at work).
+- In-kind transfers crossing the scope boundary are flows at the broker-reported value, else at market value.
+- FEE rows (including subscription fees and refunds) are not flows; they reduce return (D-21).
 - Weekends/holidays: value carried forward; r_d = 0 unless FX moves.
 - Periods: YTD, each completed calendar year, since inception (first day with capital).
 - Per security: V_d = position market value + income received that day, F_d = buys (+) and sells (-) at trade value;
@@ -67,8 +73,8 @@ sum_i CF_i / (1 + r)^((d_i - d_0) / 365) = 0
 Newton-Raphson from r=0.1, bisection fallback on [-0.9999, 10]. Not available if fewer than 2 flows or no root.
 
 ## Income (FR-10)
-- Paid income: DIVIDEND, DISTRIBUTION, INTEREST rows; gross = gross_amount (or net + linked withholding),
-  withholding = linked WITHHOLDING_TAX, net = cash received. DRIP amount and shares come from the linked DRIP row.
+- Paid income: DIVIDEND, DISTRIBUTION, INTEREST rows (incl. GIC interest and securities-lending payments);
+  gross = gross_amount (or net + linked withholding), withholding = linked WITHHOLDING_TAX net of rebates, net = cash received. DRIP amount and shares come from the linked DRIP row.
 - Groupings: month, quarter, year, account, security, sector, currency; trailing 12 months (gross and net).
 - Concentration: share of trailing-12-month income by issuer and by sector; top 10 income holdings.
 - Trailing yield = trailing-12-month income per share / current price.
@@ -78,8 +84,8 @@ Newton-Raphson from r=0.1, bisection fallback on [-0.9999, 10]. Not available if
 
 ## Diversification (FR-11, D-9, D-10)
 - Weights by current market value in rc, filtered by scope.
-- Dimensions: GICS sector (+ fund buckets), industry, security, asset class, broker, account type, trading currency,
-  region, issuer country, fund domicile.
+- Dimensions: GICS sector (+ fund buckets), industry, security, asset class, market-cap group (D-19), broker,
+  account type, trading currency, region, issuer country, fund domicile.
 - Sector table columns: actual %, value, target %, variance (pp) = actual - target, variance ($) = value -
   target % * total.
 - Concentration: largest single security %, top-10 holdings %.

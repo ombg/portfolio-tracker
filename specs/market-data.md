@@ -34,7 +34,8 @@ Each run writes `market.refresh_runs`. API exposes `GET /api/market/status`:
 | Market closed | outside schedule; last close shown with its date |
 
 ## Metadata
-Provider sector strings are mapped to GICS through `core.sector_map` (D-9). Unknown strings -> "Unclassified" plus a
+Provider sector strings are mapped to GICS through `core.sector_map` (D-9). Market cap (stocks only) is refreshed
+weekly into `securities.market_cap`; the group thresholds are in D-19. Unknown strings -> "Unclassified" plus a
 data-quality issue. Fund domicile and asset class come from the provider when available, else default by security
 type and must be confirmed by the user (data-quality issue `missing_metadata`).
 
