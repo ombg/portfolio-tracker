@@ -241,5 +241,4 @@ it later (a correction, D-7).
 
 ## Open questions
 
-- Q-15 GitHub: create the private repository and attach it to this session with push access (details in chat).
-- Q-16 Two small opening cash amounts were inferred from reconciliation (details in chat): confirm or correct.
+- Q-15 GitHub push access for the repository `ombg/portfolio-tracker` (details in chat).
