@@ -55,6 +55,24 @@ browser --HTTPS--> web (Caddy + React SPA)
 
 Errors from every endpoint have the shape `{"error": "<stable code>", "message": "<text>"}`.
 
+### Accounts (FR-2, D-2, D-14)
+All routes require a session and run in `WithUser`; another user's account answers 404 exactly like a missing one.
+- `GET /api/brokers`, `GET /api/currencies`: reference data for the account form.
+- `GET /api/accounts[?include_archived=true]` -> `{"accounts": [...]}`, open first, then closed (archived only when
+  asked), by name.
+- `POST /api/accounts` -> 201 + `Location`. Required: `broker` (code), `name`, `type`. Defaults: `base_currency` CAD,
+  `management` self_directed, `status` open. The account goes into the user's single portfolio (D-2).
+- `GET /api/accounts/{id}`; `PATCH /api/accounts/{id}`: absent fields stay, `null` clears nullable fields (`notes`,
+  `external_number`, `opened_on`, `closed_on`, `migration_meta`). Close/reopen/archive = PATCH `status`.
+- Derived values: `is_registered` follows `type` (client chooses only for OTHER, default false); `management =
+  robo` sets `analysis_level = account`. Changing `type` or `management` re-derives them unless the same PATCH sets
+  them; a contradicting value is 422.
+- Rules: `broker` cannot change after creation (transactions will depend on it); setting `status` to `open` clears
+  `closed_on`; `closed_on` not before `opened_on`; `external_number` unique per user and broker (409
+  `duplicate_account_number`); `migration_meta` is a JSON object (FR-2 migration metadata). No delete: accounts are
+  archived (NFR-3).
+- Errors: 422 `{"error":"validation_failed","field":..., "message":...}`; 400 for malformed JSON or unknown fields.
+
 ### Import (FR-3)
 1. Browser uploads file to `POST /api/imports` (portfolio-api), choosing broker and, optionally, target account.
 2. portfolio-api streams it to importer `POST /internal/imports`. importer stores the original (D-12), hashes it,
