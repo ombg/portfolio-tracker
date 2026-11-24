@@ -16,7 +16,7 @@ The PRD is sound and implementable. It fixes the right priorities: ledger as sys
 | Time-weighted return is the primary metric | Needs a daily valuation series back to the first transaction |
 | 30-minute price/FX refresh with visible status | Scheduler, refresh-run log, staleness rules |
 | Import preview, correction, reconciliation | Staging tables, overlay corrections, broker snapshots |
-| ETF look-through, ACB tax and benchmarks deferred | Smaller v1; resolves the XGRO question for now |
+| ETF look-through, ACB tax and benchmarks deferred | Smaller v1; resolves the all-in-one ETF question for now |
 
 ## Recommended PRD amendments
 
@@ -29,7 +29,7 @@ These are gaps or ambiguities. Each is resolved by a decision below; Oliver shou
    no snapshot input is in scope. Add snapshot import (positions CSV) and manual snapshot entry. -> D-11.
 3. **30-minute refresh vs. data reality.** Official FX (Bank of Canada) is daily. Refresh should run during market
    hours only; outside hours the status is "Market closed", not "Stale". -> D-3.
-4. **Sector view and funds.** An eleven-sector GICS view cannot place XGRO, XEF or KILO. Add non-GICS buckets for
+4. **Sector view and funds.** An eleven-sector GICS view cannot place QZGR, XEF or KILO. Add non-GICS buckets for
    funds and allow a manual single-sector assignment for sector ETFs (XIT, FIE). -> D-9.
 5. **Region by fund domicile is misleading.** XEF (EAFE equities) is Canadian-domiciled and would show as Canada.
    Keep domicile as the PRD default but allow a manual "exposure region" override per fund. -> D-10.
@@ -116,7 +116,7 @@ new value, user, time, reason). The effective ledger is the view `v_ledger`. Voi
   Consumer Discretionary, "Consumer Defensive" -> Consumer Staples, "Healthcare" -> Health Care,
   "Basic Materials" -> Materials).
 - Extra buckets outside GICS for funds and cash: Multi-sector fund, Fixed income, Commodity, Cash.
-- Default for a broad ETF (XGRO, XEF) is Multi-sector fund. A user override can assign one sector to a sector
+- Default for a broad ETF (QZGR, XEF) is Multi-sector fund. A user override can assign one sector to a sector
   ETF (XIT -> Information Technology, FIE -> Financials). Look-through stays deferred (PRD 3.2).
 
 ### D-10 Region

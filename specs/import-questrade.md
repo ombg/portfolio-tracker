@@ -56,7 +56,7 @@ All files go through the same duplicate rule (D-8): rows already in the ledger a
 rest are added (D-28). Rows of untracked accounts are skipped and counted (D-22).
 
 ## Symbol resolution
-1. Strip and upper-case; `XGRO.TO` -> symbol XGRO, exchange TSX; `AP.UN.TO` -> AP.UN, TSX; no suffix -> US.
+1. Strip and upper-case; `QZGR.TO` -> symbol QZGR, exchange TSX; `AP.UN.TO` -> AP.UN, TSX; no suffix -> US.
 2. Look up `security_aliases` (broker questrade), then `security_symbols` valid on trade_date.
 3. Internal code (letter + 6 digits): match the Description's security name against securities the account has
    traded or holds (e.g. code for "ISHARES TRUST ISHARES IBONDS DEC 2025 TERM" -> IBDQ); propose as a warning;
