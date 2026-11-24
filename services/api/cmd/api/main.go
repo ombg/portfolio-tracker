@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ombg/portfolio-tracker/services/api/internal/accounts"
 	"github.com/ombg/portfolio-tracker/services/api/internal/auth"
 	"github.com/ombg/portfolio-tracker/services/api/internal/config"
 	"github.com/ombg/portfolio-tracker/services/api/internal/db"
@@ -54,6 +55,7 @@ func run() error {
 		Addr: cfg.ListenAddr,
 		Handler: httpapi.NewRouter(httpapi.Deps{
 			DB: pool, Auth: auth.NewStore(pool), Signer: signer, CookieSecure: cfg.CookieSecure,
+			Accounts: &accounts.Store{Pool: pool},
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 	}

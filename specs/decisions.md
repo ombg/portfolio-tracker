@@ -247,7 +247,7 @@ revoke a session, read the signed-in user's profile). User creation and password
 connects as the database owner (D-1). Confirmed by Oliver 2026-11-24.
 
 ### D-33 Sessions, passwords and CSRF
-Answers the PRD's open "password policy" item for v1. Proposed 2026-11-24; Oliver to confirm or adjust.
+Answers the PRD's open "password policy" item for v1. Confirmed by Oliver 2026-11-24.
 - Passwords: at least 12 characters (no composition rules), at most 1024 bytes; argon2id, 64 MiB, 1 pass, 4 lanes
   (RFC 9106), stored in PHC format so parameters can be raised later. At most 4 hashes run at once.
 - Sessions: absolute lifetime 30 days, ended after 7 days without a request; a password reset (`ptctl user
@@ -263,6 +263,4 @@ Answers the PRD's open "password policy" item for v1. Proposed 2026-11-24; Olive
 
 ## Open questions
 
-- Q-17 Confirm or adjust D-33 (password length, session lifetimes, no login rate limiting in v1).
-
-Q-15 (GitHub push access) closed 2026-11-24.
+None open. Q-15 (GitHub push access) and Q-17 (D-33 confirmation) closed 2026-11-24.

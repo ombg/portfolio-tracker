@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ombg/portfolio-tracker/services/api/internal/accounts"
 	"github.com/ombg/portfolio-tracker/services/api/internal/admin"
 	"github.com/ombg/portfolio-tracker/services/api/internal/auth"
 	"github.com/ombg/portfolio-tracker/services/api/internal/testdb"
@@ -76,7 +77,7 @@ func newHarness(t *testing.T) *harness {
 		t.Fatal(err)
 	}
 	store := auth.NewStore(pool)
-	return &harness{t: t, store: store, router: NewRouter(Deps{DB: pool, Auth: store, Signer: signer, CookieSecure: true})}
+	return &harness{t: t, store: store, router: NewRouter(Deps{DB: pool, Auth: store, Signer: signer, CookieSecure: true, Accounts: &accounts.Store{Pool: pool}})}
 }
 
 func (h *harness) do(method, path, body string, cookie *http.Cookie) *httptest.ResponseRecorder {

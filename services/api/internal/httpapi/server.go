@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"github.com/ombg/portfolio-tracker/services/api/internal/accounts"
 	"github.com/ombg/portfolio-tracker/services/api/internal/auth"
 )
 
@@ -22,6 +23,7 @@ type Deps struct {
 	DB           Pinger
 	Auth         *auth.Store
 	Signer       *auth.Signer
+	Accounts     *accounts.Store
 	CookieSecure bool // false only for plain-HTTP development outside localhost
 }
 
@@ -50,6 +52,9 @@ func NewRouter(d Deps) http.Handler {
 		r.Group(func(r chi.Router) {
 			r.Use(a.requireUser)
 			r.Get("/api/me", a.me)
+			if d.Accounts != nil {
+				(&accountHandlers{store: d.Accounts}).routes(r)
+			}
 		})
 	}
 	return r
