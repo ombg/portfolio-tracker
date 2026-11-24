@@ -82,6 +82,12 @@ backups/                  nightly backups (git-ignored, D-18)
 `.env`: `POSTGRES_PASSWORD`, `SERVICE_TOKEN`, `SESSION_SECRET`, `REPORTING_CURRENCY_DEFAULT=CAD`,
 `FILES_DIR=/data/files`, `TZ_MARKET=America/Toronto`. Volumes: `pgdata`, `files`.
 
+portfolio-api reads `DATABASE_URL` (owner connection, built by Compose from `POSTGRES_PASSWORD`), `MIGRATIONS_DIR`
+(default `/migrations`, baked into the image from `db/migrations`) and `LISTEN_ADDR` (default `:8080`). It applies
+pending migrations on every start; `api migrate` (`make migrate`) applies them and exits. `GET /api/health` returns
+503 when the database is unreachable. `.dockerignore` keeps `data/`, `backups/`, `context/` and `.env` out of every
+build context (D-20).
+
 ## Backups (D-18)
 A `backup` container runs nightly at 02:00 local time: `pg_dump -Fc` and a copy of the `files` volume into
 `./backups/YYYY-MM-DD/` on the host (git-ignored), deleting folders older than 30 days.

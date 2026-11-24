@@ -1,0 +1,8 @@
+# Private data must never enter a build context or image (D-20, rule 7).
+data/
+backups/
+context/
+.env
+.git/
+chatgpt/
+**/.DS_Store
