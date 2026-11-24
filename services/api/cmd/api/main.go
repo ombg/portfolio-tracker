@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ombg/portfolio-tracker/services/api/internal/auth"
 	"github.com/ombg/portfolio-tracker/services/api/internal/config"
 	"github.com/ombg/portfolio-tracker/services/api/internal/db"
 	"github.com/ombg/portfolio-tracker/services/api/internal/httpapi"
@@ -39,6 +40,10 @@ func run() error {
 		slog.Info("migrations applied")
 		return nil
 	}
+	signer, err := auth.NewSigner(cfg.SessionSecret)
+	if err != nil {
+		return err
+	}
 	pool, err := db.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
 		return err
@@ -46,8 +51,10 @@ func run() error {
 	defer pool.Close()
 
 	srv := &http.Server{
-		Addr:              cfg.ListenAddr,
-		Handler:           httpapi.NewRouter(pool),
+		Addr: cfg.ListenAddr,
+		Handler: httpapi.NewRouter(httpapi.Deps{
+			DB: pool, Auth: auth.NewStore(pool), Signer: signer, CookieSecure: cfg.CookieSecure,
+		}),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	errc := make(chan error, 1)

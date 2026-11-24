@@ -246,6 +246,23 @@ reaches them only through a few `SECURITY DEFINER` functions with a fixed purpos
 revoke a session, read the signed-in user's profile). User creation and password reset stay in `ptctl`, which
 connects as the database owner (D-1). Confirmed by Oliver 2026-11-24.
 
+### D-33 Sessions, passwords and CSRF
+Answers the PRD's open "password policy" item for v1. Proposed 2026-11-24; Oliver to confirm or adjust.
+- Passwords: at least 12 characters (no composition rules), at most 1024 bytes; argon2id, 64 MiB, 1 pass, 4 lanes
+  (RFC 9106), stored in PHC format so parameters can be raised later. At most 4 hashes run at once.
+- Sessions: absolute lifetime 30 days, ended after 7 days without a request; a password reset (`ptctl user
+  set-password`) ends all sessions of that user; disabling a user ends them too. Expired rows are removed when the
+  same user logs in again.
+- Cookie `pt_session` = session id + HMAC-SHA256 with `SESSION_SECRET` (at least 32 bytes); HttpOnly, Secure,
+  SameSite=Lax, Path=/.
+- Login failures for an unknown email, a disabled user and a wrong password give the same 401 after the same
+  hashing work. Emails and passwords are never logged.
+- CSRF: every POST/PUT/PATCH/DELETE must be `application/json` (415 otherwise); browsers cannot send that cross-site
+  without a CORS preflight, which the API never grants. Together with SameSite=Lax this replaces CSRF tokens.
+- Not in v1: login rate limiting and lockout (the app runs on a private network; revisit before exposing it).
+
 ## Open questions
 
-None open. Q-15 (GitHub push access) closed 2026-11-24.
+- Q-17 Confirm or adjust D-33 (password length, session lifetimes, no login rate limiting in v1).
+
+Q-15 (GitHub push access) closed 2026-11-24.

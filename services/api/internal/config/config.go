@@ -10,14 +10,19 @@ type Config struct {
 	DatabaseURL   string // postgres:// URL; the API connects as the database owner
 	MigrationsDir string // path to db/migrations
 	ListenAddr    string
+	SessionSecret string // signs session cookies; at least 32 bytes
+	CookieSecure  bool   // COOKIE_SECURE=false only for plain-HTTP development outside localhost
 }
 
-// FromEnv reads the configuration. DATABASE_URL is required.
+// FromEnv reads the configuration. DATABASE_URL is always required; SESSION_SECRET is
+// required to serve (checked when the signer is built), not for `api migrate`.
 func FromEnv() (Config, error) {
 	c := Config{
 		DatabaseURL:   os.Getenv("DATABASE_URL"),
 		MigrationsDir: getenv("MIGRATIONS_DIR", "/migrations"),
 		ListenAddr:    getenv("LISTEN_ADDR", ":8080"),
+		SessionSecret: os.Getenv("SESSION_SECRET"),
+		CookieSecure:  os.Getenv("COOKIE_SECURE") != "false",
 	}
 	if c.DatabaseURL == "" {
 		return Config{}, errors.New("DATABASE_URL is required")

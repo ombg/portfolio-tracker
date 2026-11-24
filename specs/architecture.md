@@ -40,6 +40,21 @@ browser --HTTPS--> web (Caddy + React SPA)
 
 ## Key flows
 
+### Authentication (FR-1, D-1, D-32, D-33)
+1. An admin creates users with `docker compose exec api ptctl user create --email E --name N [--currency CAD]`
+   (password prompted twice); this also creates the user's portfolio (D-2). `ptctl user set-password --email E`
+   resets a password and ends that user's sessions. ptctl connects as the database owner.
+2. `POST /api/auth/login` `{"email","password"}` -> 204 and the `pt_session` cookie, or 401
+   `{"error":"invalid_credentials"}`. Lookup and session creation go through `core.auth_user_for_login` and
+   `core.session_create`, run as `pt_app`.
+3. Every authenticated route resolves the cookie with `core.session_user_id` (also records activity), then runs its
+   queries in `WithUser` (`pt_app` + `app.user_id`). Missing, forged, expired or idle sessions get 401
+   `{"error":"unauthenticated"}`.
+4. `GET /api/me` returns id, email, display name and reporting currency (`core.current_user_profile`).
+5. `POST /api/auth/logout` deletes the session (`core.session_revoke`) and clears the cookie.
+
+Errors from every endpoint have the shape `{"error": "<stable code>", "message": "<text>"}`.
+
 ### Import (FR-3)
 1. Browser uploads file to `POST /api/imports` (portfolio-api), choosing broker and, optionally, target account.
 2. portfolio-api streams it to importer `POST /internal/imports`. importer stores the original (D-12), hashes it,
@@ -83,7 +98,9 @@ backups/                  nightly backups (git-ignored, D-18)
 `FILES_DIR=/data/files`, `TZ_MARKET=America/Toronto`. Volumes: `pgdata`, `files`.
 
 portfolio-api reads `DATABASE_URL` (owner connection, built by Compose from `POSTGRES_PASSWORD`), `MIGRATIONS_DIR`
-(default `/migrations`, baked into the image from `db/migrations`) and `LISTEN_ADDR` (default `:8080`). It applies
+(default `/migrations`, baked into the image from `db/migrations`), `LISTEN_ADDR` (default `:8080`),
+`SESSION_SECRET` (required to serve, at least 32 bytes) and `COOKIE_SECURE` (default `true`; browsers accept Secure
+cookies on `http://localhost`, so `false` is only for plain HTTP on another host). It applies
 pending migrations on every start; `api migrate` (`make migrate`) applies them and exits. `GET /api/health` returns
 503 when the database is unreachable. `.dockerignore` keeps `data/`, `backups/`, `context/` and `.env` out of every
 build context (D-20).

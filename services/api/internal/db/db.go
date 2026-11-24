@@ -81,6 +81,18 @@ func pgx5URL(url string) (string, error) {
 	return "", errors.New("database url must start with postgres:// or postgresql://")
 }
 
+// AsRequestRole runs fn in a transaction as RequestRole with no user set. RLS then hides
+// every user-owned row; it is used only for login and session lookup, which go through
+// the D-32 functions.
+func AsRequestRole(ctx context.Context, pool *pgxpool.Pool, fn func(pgx.Tx) error) error {
+	return pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, "SET LOCAL ROLE "+RequestRole); err != nil {
+			return fmt.Errorf("set request role: %w", err)
+		}
+		return fn(tx)
+	})
+}
+
 // WithUser runs fn in a transaction as RequestRole with app.user_id set to userID,
 // so RLS limits every query to that user's rows. The transaction commits when fn
 // returns nil and rolls back otherwise.
