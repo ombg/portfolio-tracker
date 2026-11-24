@@ -15,6 +15,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/ombg/portfolio-tracker/services/api/internal/auth"
+	"github.com/ombg/portfolio-tracker/services/api/internal/db"
+	"github.com/ombg/portfolio-tracker/services/api/internal/db/dbq"
 )
 
 var (
@@ -57,16 +59,17 @@ func CreateUser(ctx context.Context, pool *pgxpool.Pool, u NewUser) (uuid.UUID, 
 
 	var id uuid.UUID
 	err = pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
-		if err := tx.QueryRow(ctx, `INSERT INTO core.users (email, password_hash, display_name, reporting_currency)
-			VALUES ($1, $2, $3, $4) RETURNING id`, email, hash, name, currency).Scan(&id); err != nil {
+		q := dbq.New(tx)
+		var err error
+		id, err = q.CreateUser(ctx, dbq.CreateUserParams{Email: email, PasswordHash: hash, DisplayName: name, ReportingCurrency: currency})
+		if err != nil {
 			return err
 		}
 		// The owner may not bypass RLS (it is forced), so set the user for the portfolio insert.
-		if _, err := tx.Exec(ctx, "SELECT set_config('app.user_id', $1, true)", id.String()); err != nil {
+		if err := db.SetUser(ctx, tx, id); err != nil {
 			return err
 		}
-		_, err := tx.Exec(ctx, "INSERT INTO core.portfolios (user_id, name) VALUES ($1, $2)", id, DefaultPortfolioName)
-		return err
+		return q.CreatePortfolio(ctx, dbq.CreatePortfolioParams{UserID: id, Name: DefaultPortfolioName})
 	})
 	var pgErr *pgconn.PgError
 	switch {
@@ -94,17 +97,15 @@ func SetPassword(ctx context.Context, pool *pgxpool.Pool, email, password string
 		return err
 	}
 	return pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
-		var id uuid.UUID
-		err := tx.QueryRow(ctx, "UPDATE core.users SET password_hash = $1 WHERE lower(email) = lower($2) RETURNING id",
-			hash, email).Scan(&id)
+		q := dbq.New(tx)
+		id, err := q.SetPasswordHash(ctx, dbq.SetPasswordHashParams{PasswordHash: hash, Email: email})
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrUserNotFound
 		}
 		if err != nil {
 			return fmt.Errorf("set password: %w", err)
 		}
-		_, err = tx.Exec(ctx, "DELETE FROM core.sessions WHERE user_id = $1", id)
-		return err
+		return q.DeleteUserSessions(ctx, id)
 	})
 }
 
