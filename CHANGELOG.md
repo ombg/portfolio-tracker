@@ -3,6 +3,10 @@
 Releases are tagged `ver-x.y.z` on `main` (`CONTRIBUTING.md`). Newest first.
 
 ## Unreleased
+- Web app (`services/web`): sign in, accounts table, create and edit accounts (FR-2); served by Caddy, which proxies
+  `/api` (the API is no longer published to the host).
+- Playwright acceptance tests: `make e2e` covers AC-1 against a throwaway stack.
+- `make test` also type-checks the web app.
 - portfolio-api queries are generated with sqlc from `services/api/internal/db/queries` (`make generate`);
   `make test` fails when the generated code is out of date.
 
