@@ -1,6 +1,6 @@
 # Decisions and PRD review
 
-Status: proposed 2026-11-19; Oliver's answers folded in on 2026-11-20, 2026-11-21 and 2026-11-23.
+Status: proposed 2026-11-19; Oliver's answers folded in on 2026-11-20, 2026-11-21, 2026-11-23 and 2026-11-24.
 Source of requirements: `chatgpt/docs/portfolio-tracker-requirements.md` (the PRD).
 This file records (a) where the PRD needs clarification or a change and (b) every design decision taken to satisfy it.
 Each decision has an ID; specs reference them as `D-n`. Superseded decisions stay here, marked as such.
@@ -239,6 +239,13 @@ When the real purchase cost of an opening position is unknown, the user may ente
 market value on the opening date as cost, labels it "estimated cost" everywhere it appears, and the user can replace
 it later (a correction, D-7).
 
+### D-32 Access to users and sessions
+`core.users` and `core.sessions` hold no portfolio data and are needed before a user id is known (login, session
+lookup), so they have no RLS policy. Instead the request role `pt_app` has no privileges on them at all; the API
+reaches them only through a few `SECURITY DEFINER` functions with a fixed purpose (verify login, create, touch and
+revoke a session, read the signed-in user's profile). User creation and password reset stay in `ptctl`, which
+connects as the database owner (D-1). Confirmed by Oliver 2026-11-24.
+
 ## Open questions
 
-- Q-15 GitHub push access for the repository `ombg/portfolio-tracker` (details in chat).
+None open. Q-15 (GitHub push access) closed 2026-11-24.

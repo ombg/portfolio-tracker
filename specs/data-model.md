@@ -2,7 +2,11 @@
 
 Implements: PRD 4.1, 4.2, FR-2, FR-5, FR-8, NFR-2, NFR-3. Decisions: D-1, D-2, D-6..D-15, D-19, D-20.
 Types: money `NUMERIC(24,8)`, quantities `NUMERIC(24,8)`, ids `uuid`, times `timestamptz` (UTC).
-Every table marked (U) has `user_id uuid NOT NULL` with an RLS policy `user_id = current_setting('app.user_id')::uuid`.
+Every table marked (U) has `user_id uuid NOT NULL` with a forced RLS policy `user_id = core.current_user_id()`, where
+`core.current_user_id()` is `NULLIF(current_setting('app.user_id', true), '')::uuid`: an unset `app.user_id` matches
+no row (fails closed). Request transactions run as the role `pt_app` (no `BYPASSRLS`, no `DELETE` on user tables).
+Rows that reference a user-owned parent use a composite foreign key `(parent_id, user_id)`, so a row can never point
+at another user's portfolio or account.
 
 ## core schema (owner: portfolio-api)
 

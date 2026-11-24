@@ -31,8 +31,9 @@ browser --HTTPS--> web (Caddy + React SPA)
 - **Table ownership**: a service writes only its own schema. Others read via views or ask the owner over HTTP.
   The ledger (`core.transactions`) is written only by portfolio-api.
 - **Migrations** for all schemas live in `db/migrations` and are applied by portfolio-api at start-up.
-- **User isolation**: portfolio-api sets `SET LOCAL app.user_id = $1` in every transaction; RLS policies on every
-  user-owned table (D-1). Internal calls carry the user id explicitly.
+- **User isolation**: portfolio-api connects as the database owner only to run migrations; every request
+  transaction starts with `SET LOCAL ROLE pt_app` and `SET LOCAL app.user_id = $1`, and forced RLS policies on every
+  user-owned table filter by it (D-1, `data-model.md`). Internal calls carry the user id explicitly.
 - **Money**: never floats. Go uses `decimal.Decimal`, Python uses `decimal.Decimal`, Postgres `NUMERIC(24,8)`.
 - **Time**: timestamps in UTC (`timestamptz`); trade and settlement dates are `date`; market schedule in
   America/Toronto.
@@ -80,6 +81,12 @@ backups/                  nightly backups (git-ignored, D-18)
 ## Configuration
 `.env`: `POSTGRES_PASSWORD`, `SERVICE_TOKEN`, `SESSION_SECRET`, `REPORTING_CURRENCY_DEFAULT=CAD`,
 `FILES_DIR=/data/files`, `TZ_MARKET=America/Toronto`. Volumes: `pgdata`, `files`.
+
+portfolio-api reads `DATABASE_URL` (owner connection, built by Compose from `POSTGRES_PASSWORD`), `MIGRATIONS_DIR`
+(default `/migrations`, baked into the image from `db/migrations`) and `LISTEN_ADDR` (default `:8080`). It applies
+pending migrations on every start; `api migrate` (`make migrate`) applies them and exits. `GET /api/health` returns
+503 when the database is unreachable. `.dockerignore` keeps `data/`, `backups/`, `context/` and `.env` out of every
+build context (D-20).
 
 ## Backups (D-18)
 A `backup` container runs nightly at 02:00 local time: `pg_dump -Fc` and a copy of the `files` volume into

@@ -1,0 +1,70 @@
+// Command api runs portfolio-api: it applies migrations at start-up, then serves /api.
+package main
+
+import (
+	"context"
+	"errors"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/ombg/portfolio-tracker/services/api/internal/config"
+	"github.com/ombg/portfolio-tracker/services/api/internal/db"
+	"github.com/ombg/portfolio-tracker/services/api/internal/httpapi"
+)
+
+func main() {
+	if err := run(); err != nil {
+		slog.Error("portfolio-api stopped", "error", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
+	cfg, err := config.FromEnv()
+	if err != nil {
+		return err
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if err := db.Migrate(cfg.DatabaseURL, cfg.MigrationsDir); err != nil {
+		return err
+	}
+	// `api migrate` applies migrations and exits (make migrate); otherwise serve.
+	if len(os.Args) > 1 && os.Args[1] == "migrate" {
+		slog.Info("migrations applied")
+		return nil
+	}
+	pool, err := db.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
+	srv := &http.Server{
+		Addr:              cfg.ListenAddr,
+		Handler:           httpapi.NewRouter(pool),
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+	errc := make(chan error, 1)
+	go func() {
+		slog.Info("portfolio-api listening", "addr", cfg.ListenAddr)
+		errc <- srv.ListenAndServe()
+	}()
+
+	select {
+	case err := <-errc:
+		if !errors.Is(err, http.ErrServerClosed) {
+			return err
+		}
+		return nil
+	case <-ctx.Done():
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		return srv.Shutdown(shutdownCtx)
+	}
+}
