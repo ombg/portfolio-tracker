@@ -31,8 +31,9 @@ browser --HTTPS--> web (Caddy + React SPA)
 - **Table ownership**: a service writes only its own schema. Others read via views or ask the owner over HTTP.
   The ledger (`core.transactions`) is written only by portfolio-api.
 - **Migrations** for all schemas live in `db/migrations` and are applied by portfolio-api at start-up.
-- **User isolation**: portfolio-api sets `SET LOCAL app.user_id = $1` in every transaction; RLS policies on every
-  user-owned table (D-1). Internal calls carry the user id explicitly.
+- **User isolation**: portfolio-api connects as the database owner only to run migrations; every request
+  transaction starts with `SET LOCAL ROLE pt_app` and `SET LOCAL app.user_id = $1`, and forced RLS policies on every
+  user-owned table filter by it (D-1, `data-model.md`). Internal calls carry the user id explicitly.
 - **Money**: never floats. Go uses `decimal.Decimal`, Python uses `decimal.Decimal`, Postgres `NUMERIC(24,8)`.
 - **Time**: timestamps in UTC (`timestamptz`); trade and settlement dates are `date`; market schedule in
   America/Toronto.
