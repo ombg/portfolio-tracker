@@ -31,13 +31,47 @@ browser --HTTPS--> web (Caddy + React SPA)
 - **Table ownership**: a service writes only its own schema. Others read via views or ask the owner over HTTP.
   The ledger (`core.transactions`) is written only by portfolio-api.
 - **Migrations** for all schemas live in `db/migrations` and are applied by portfolio-api at start-up.
-- **User isolation**: portfolio-api sets `SET LOCAL app.user_id = $1` in every transaction; RLS policies on every
-  user-owned table (D-1). Internal calls carry the user id explicitly.
+- **User isolation**: portfolio-api connects as the database owner only to run migrations; every request
+  transaction starts with `SET LOCAL ROLE pt_app` and `SET LOCAL app.user_id = $1`, and forced RLS policies on every
+  user-owned table filter by it (D-1, `data-model.md`). Internal calls carry the user id explicitly.
 - **Money**: never floats. Go uses `decimal.Decimal`, Python uses `decimal.Decimal`, Postgres `NUMERIC(24,8)`.
 - **Time**: timestamps in UTC (`timestamptz`); trade and settlement dates are `date`; market schedule in
   America/Toronto.
 
 ## Key flows
+
+### Authentication (FR-1, D-1, D-32, D-33)
+1. An admin creates users with `docker compose exec api ptctl user create --email E --name N [--currency CAD]`
+   (password prompted twice); this also creates the user's portfolio (D-2). `ptctl user set-password --email E`
+   resets a password and ends that user's sessions. ptctl connects as the database owner.
+2. `POST /api/auth/login` `{"email","password"}` -> 204 and the `pt_session` cookie, or 401
+   `{"error":"invalid_credentials"}`. Lookup and session creation go through `core.auth_user_for_login` and
+   `core.session_create`, run as `pt_app`.
+3. Every authenticated route resolves the cookie with `core.session_user_id` (also records activity), then runs its
+   queries in `WithUser` (`pt_app` + `app.user_id`). Missing, forged, expired or idle sessions get 401
+   `{"error":"unauthenticated"}`.
+4. `GET /api/me` returns id, email, display name and reporting currency (`core.current_user_profile`).
+5. `POST /api/auth/logout` deletes the session (`core.session_revoke`) and clears the cookie.
+
+Errors from every endpoint have the shape `{"error": "<stable code>", "message": "<text>"}`.
+
+### Accounts (FR-2, D-2, D-14)
+All routes require a session and run in `WithUser`; another user's account answers 404 exactly like a missing one.
+- `GET /api/brokers`, `GET /api/currencies`: reference data for the account form.
+- `GET /api/accounts[?include_archived=true]` -> `{"accounts": [...]}`, open first, then closed (archived only when
+  asked), by name.
+- `POST /api/accounts` -> 201 + `Location`. Required: `broker` (code), `name`, `type`. Defaults: `base_currency` CAD,
+  `management` self_directed, `status` open. The account goes into the user's single portfolio (D-2).
+- `GET /api/accounts/{id}`; `PATCH /api/accounts/{id}`: absent fields stay, `null` clears nullable fields (`notes`,
+  `external_number`, `opened_on`, `closed_on`, `migration_meta`). Close/reopen/archive = PATCH `status`.
+- Derived values: `is_registered` follows `type` (client chooses only for OTHER, default false); `management =
+  robo` sets `analysis_level = account`. Changing `type` or `management` re-derives them unless the same PATCH sets
+  them; a contradicting value is 422.
+- Rules: `broker` cannot change after creation (transactions will depend on it); setting `status` to `open` clears
+  `closed_on`; `closed_on` not before `opened_on`; `external_number` unique per user and broker (409
+  `duplicate_account_number`); `migration_meta` is a JSON object (FR-2 migration metadata). No delete: accounts are
+  archived (NFR-3).
+- Errors: 422 `{"error":"validation_failed","field":..., "message":...}`; 400 for malformed JSON or unknown fields.
 
 ### Import (FR-3)
 1. Browser uploads file to `POST /api/imports` (portfolio-api), choosing broker and, optionally, target account.
@@ -61,6 +95,8 @@ A goroutine worker in portfolio-api drains `core.recalc_queue (account_id, from_
 
 ## Repository layout
 
+One repository for all services (D-30); workflow in `CONTRIBUTING.md`.
+
 ```
 CLAUDE.md                 project guide for Claude Code
 specs/                    this folder; source of truth for behaviour
@@ -71,11 +107,27 @@ services/importer/        Python package (parsers/questrade.py, parsers/wealthsi
 services/market-data/     Python package (providers/yahoo.py, providers/boc.py)
 testdata/                 golden fixtures (see specs/testing.md)
 docker-compose.yml, Makefile, .env.example
+data/                     private real exports (git-ignored, D-20)
+backups/                  nightly backups (git-ignored, D-18)
 ```
 
 ## Configuration
 `.env`: `POSTGRES_PASSWORD`, `SERVICE_TOKEN`, `SESSION_SECRET`, `REPORTING_CURRENCY_DEFAULT=CAD`,
 `FILES_DIR=/data/files`, `TZ_MARKET=America/Toronto`. Volumes: `pgdata`, `files`.
 
-## Backups (proposed, Q-5)
-Nightly `pg_dump` plus a copy of the `files` volume into a host folder; keep 30 days.
+portfolio-api reads `DATABASE_URL` (owner connection, built by Compose from `POSTGRES_PASSWORD`), `MIGRATIONS_DIR`
+(default `/migrations`, baked into the image from `db/migrations`), `LISTEN_ADDR` (default `:8080`),
+`SESSION_SECRET` (required to serve, at least 32 bytes) and `COOKIE_SECURE` (default `true`; browsers accept Secure
+cookies on `http://localhost`, so `false` is only for plain HTTP on another host). It applies
+pending migrations on every start; `api migrate` (`make migrate`) applies them and exits. `GET /api/health` returns
+503 when the database is unreachable. `.dockerignore` keeps `data/`, `backups/`, `context/` and `.env` out of every
+build context (D-20).
+
+## Backups (D-18)
+A `backup` container runs nightly at 02:00 local time: `pg_dump -Fc` and a copy of the `files` volume into
+`./backups/YYYY-MM-DD/` on the host (git-ignored), deleting folders older than 30 days.
+Restore: `make restore DATE=YYYY-MM-DD` stops the API, runs `pg_restore --clean`, copies files back, restarts.
+
+## Private data (D-20)
+`data/` holds real exports and the account inventory and is git-ignored. Nothing from it goes into code, specs,
+fixtures or commits.
