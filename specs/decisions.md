@@ -1,6 +1,6 @@
 # Decisions and PRD review
 
-Status: proposed 2026-11-19, pending Oliver's review.
+Status: proposed 2026-11-19; Oliver's answers folded in on 2026-11-20, 2026-11-21 and 2026-11-23.
 Source of requirements: `chatgpt/docs/portfolio-tracker-requirements.md` (the PRD).
 This file records (a) where the PRD needs clarification or a change and (b) every design decision taken to satisfy it.
 Each decision has an ID; specs reference them as `D-n`. Superseded decisions stay here, marked as such.
@@ -16,7 +16,7 @@ The PRD is sound and implementable. It fixes the right priorities: ledger as sys
 | Time-weighted return is the primary metric | Needs a daily valuation series back to the first transaction |
 | 30-minute price/FX refresh with visible status | Scheduler, refresh-run log, staleness rules |
 | Import preview, correction, reconciliation | Staging tables, overlay corrections, broker snapshots |
-| ETF look-through, ACB tax and benchmarks deferred | Smaller v1; resolves the XGRO question for now |
+| ETF look-through, ACB tax and benchmarks deferred | Smaller v1; resolves the all-in-one ETF question for now |
 
 ## Recommended PRD amendments
 
@@ -29,7 +29,7 @@ These are gaps or ambiguities. Each is resolved by a decision below; Oliver shou
    no snapshot input is in scope. Add snapshot import (positions CSV) and manual snapshot entry. -> D-11.
 3. **30-minute refresh vs. data reality.** Official FX (Bank of Canada) is daily. Refresh should run during market
    hours only; outside hours the status is "Market closed", not "Stale". -> D-3.
-4. **Sector view and funds.** An eleven-sector GICS view cannot place XGRO, XEF or KILO. Add non-GICS buckets for
+4. **Sector view and funds.** An eleven-sector GICS view cannot place QZGR, XEF or KILO. Add non-GICS buckets for
    funds and allow a manual single-sector assignment for sector ETFs (XIT, FIE). -> D-9.
 5. **Region by fund domicile is misleading.** XEF (EAFE equities) is Canadian-domiciled and would show as Canada.
    Keep domicile as the PRD default but allow a manual "exposure region" override per fund. -> D-10.
@@ -39,13 +39,19 @@ These are gaps or ambiguities. Each is resolved by a decision below; Oliver shou
    everywhere. -> D-6.
 8. **Per-security TWR "where meaningful".** Define it: only over periods with a non-zero position. -> D-4.
 9. **Spreadsheet features missing from the PRD.** Beta, market-cap group, dividend-growth rating, the
-   yield x growth matrix, "next payment" and the index benchmark are absent. Benchmark is a phase-2 item;
-   confirm the others are intentionally dropped. -> Open question Q-1.
+   yield x growth matrix, "next payment" and the index benchmark are absent. Benchmark is a phase-2 item.
+   Resolved: keep market-cap group, drop the rest. -> D-19.
 10. **Correctness acceptance.** Acceptance criteria say "view X" but never "X is correct". Add golden-file
     fixtures with hand-computed results (see `specs/testing.md`).
 11. **Security identity over time.** Ticker changes, mergers and spin-offs need a stable internal security id
     with symbol history. -> D-15.
-12. **Samples.** No Wealthsimple export exists in `data/` yet; the Wealthsimple mapping spec is blocked on it.
+12. **Samples.** Resolved: Wealthsimple activities and holdings, Questrade full-history activities and investment
+    summary are in `data/` (private).
+13. **Robo accounts at any broker.** FR-12 only names Questwealth, but robo accounts exist at Wealthsimple too, and a
+    robo account is also a TFSA/RRSP/etc. Model "managed" as a flag next to the tax type, not as an account type.
+    -> D-14.
+14. **GICs in history.** GICs are out of scope in PRD 3.2, but short GICs appear in tracked accounts' history; without
+    minimal support cash cannot reconcile. -> D-26.
 
 ## Decisions
 
@@ -110,7 +116,7 @@ new value, user, time, reason). The effective ledger is the view `v_ledger`. Voi
   Consumer Discretionary, "Consumer Defensive" -> Consumer Staples, "Healthcare" -> Health Care,
   "Basic Materials" -> Materials).
 - Extra buckets outside GICS for funds and cash: Multi-sector fund, Fixed income, Commodity, Cash.
-- Default for a broad ETF (XGRO, XEF) is Multi-sector fund. A user override can assign one sector to a sector
+- Default for a broad ETF (QZGR, XEF) is Multi-sector fund. A user override can assign one sector to a sector
   ETF (XIT -> Information Technology, FIE -> Financials). Look-through stays deferred (PRD 3.2).
 
 ### D-10 Region
@@ -118,7 +124,9 @@ Default region = issuer domicile (stocks) or fund domicile (funds), per FR-11. O
 override per security (e.g. XEF -> International Developed). Reports show which basis each row uses.
 
 ### D-11 Reconciliation input
-Broker snapshots are imported from a positions/balances export or entered by hand, per account and as-of date.
+Reconciliation answers: "does what the app computed from my transaction history match what the broker says I
+hold?" The broker side is a snapshot per account and as-of date (quantity per security, cash per currency).
+It comes from a holdings file downloaded from the broker (D-22) or is typed in from a statement.
 Default tolerances: quantity within 0.0001 units, cash within 0.01 of the currency. Configurable per account.
 
 ### D-12 File storage
@@ -130,10 +138,12 @@ metadata in `source_files`. Deletion only through an explicit retention action (
 override or price backfill marks the account dirty from the earliest affected date; a background job in
 `portfolio-api` recomputes forward. Reports read only from these tables plus live quotes for today.
 
-### D-14 Questwealth (robo) account
-Account has `analysis_level = 'account'`. Its trades are imported normally so value and cash are correct, but
-reports show it as one line ("Questwealth portfolio", asset class Managed portfolio, sector Multi-sector fund)
-with a visible "account-level only" label (FR-12).
+### D-14 Robo (managed) accounts
+Applies to any broker's robo account (Questwealth, Wealthsimple managed portfolios). The account keeps its tax
+type (TFSA, RRSP, ...) and has `management = 'robo'`, which implies `analysis_level = 'account'`. Its trades are
+imported normally so value, cash, fees and performance are correct, but holdings, income and diversification
+reports show it as one line ("<account name> portfolio", asset class Managed portfolio, sector Multi-sector fund)
+with a visible "account-level only" label (FR-12). Registered/non-registered subtotals use its tax type.
 
 ### D-15 Security identity
 Securities have an internal id. `security_symbols` keeps (symbol, exchange, valid_from, valid_to);
@@ -149,11 +159,86 @@ auth centralised: the browser talks only to `portfolio-api` (through Caddy); the
 Average cost per account (FR-8), tracked in native currency and in reporting currency at transaction-date FX.
 The aggregate view shows a weighted informational average. No tax ACB pool in v1; schema keeps full history.
 
+### D-18 Backups
+Nightly `pg_dump` of the database plus a copy of the `files` volume into `./backups/` on the host (git-ignored),
+30 days retained. Restore procedure documented in `specs/architecture.md`.
+
+### D-19 Spreadsheet features
+From the old spreadsheet, keep **market-cap group** (Mega > $200B, Large > $10B, Mid > $2B, Small > $0.3B, else
+Micro; funds get "Fund") as a diversification dimension. Drop beta, dividend-growth rating, the yield x growth matrix
+and "next payment". The spreadsheet's holdings are dummy data: use it only as a feature reference, never import it.
+No RBC broker support in v1.
+
+### D-20 Private account data
+The real account inventory lives in `data/accounts.md`, and real exports in `data/`; the folder is git-ignored.
+Nothing derived from them (account numbers, names, opening dates, balances, holdings) may appear in specs, code,
+tests, fixtures or commit messages. Accounts are created in the app through the UI or `ptctl`, and test fixtures are
+synthetic files that mimic each broker's format.
+
+### D-21 Fees paid from an account
+Every FEE row reduces return, including subscription fees paid from an investment account; refunds of fees
+(e.g. management-fee refunds) are negative fees. Not external cash flows. Confirmed by Oliver.
+
+### D-22 Snapshot sources (and untracked accounts in any file)
+Broker snapshots for reconciliation come from the brokers' holdings files, specified in `specs/import-snapshots.md`:
+Questrade "Investment Summary" XLSX (sheets Balances and Positions) and the Wealthsimple holdings report CSV.
+These files, and activity exports too, can contain accounts the tracker does not know. Rows for unknown account
+numbers are skipped and listed as "not tracked"; every total is computed from tracked accounts only. The preview
+offers to create the account if the user wants to track it after all.
+
+### D-23 Transfers to or from untracked accounts
+A transfer whose other side is not a tracked account behaves exactly like a withdrawal (out) or a contribution (in):
+an external flow for every scope. Cash transfers use the cash amount; in-kind transfers use the broker-reported
+market value, else the market value on the transfer date. Shares that come back in start a new average cost at that
+value, so book value can differ from the broker's (the broker may keep the original cost); reconciliation compares
+quantities and cash, not book value. If the other side later becomes a tracked account, the user links the two legs
+and they turn into an internal transfer.
+
+### D-24 History start vs. account opening date
+Each account has `opened_on`. After every import, a data-quality check compares it with the earliest transaction of
+the account: a gap of more than 31 days raises `history_gap_start`, and any position or cash that cannot be
+explained (e.g. a sale without a prior buy) raises `negative_holding`. The fix is a fuller export or **opening
+positions**: security, quantity, cost and date (cash too), entered in the UI or imported from a CSV (format in
+`specs/data-quality.md`), stored as TRANSFER_IN rows with `origin = 'opening_balance'`, external flows on that
+date (FR-2 migration metadata). Oliver's opening positions are in `data/opening-positions.csv` (private).
+
+### D-25 Questrade format stability
+Questrade's activity export keeps one column layout across date ranges and accounts (confirmed with the
+full-history export). New action codes may appear; unknown codes become error rows that the user maps once.
+
+### D-26 Minimal GIC support
+GICs found in history are imported so cash and value reconcile: one security per GIC (`security_type = 'gic'`,
+issuer, rate, maturity from the description), bought and redeemed at 1.00 per unit, valued at principal (no accrued
+interest), interest as INTEREST income, asset class Fixed income, sector bucket Cash. No GIC analytics beyond that;
+full GIC support stays phase 2 (PRD 3.2).
+
+### D-27 Detecting internal transfers
+A deposit, withdrawal or transfer row whose description contains another tracked account's number (digits only,
+broker suffixes and dashes ignored) is an internal transfer. The importer pairs it with the opposite row in the other
+account (same date +/- 3 days, same amount and currency) under one `group_id`; if the other side is not imported
+yet, the row stays "awaiting counterpart" and is linked automatically when it arrives. Internal transfers are not
+external flows for scopes containing both accounts (D-4), even when the tax wrapper treats them as a withdrawal and
+a contribution (e.g. TFSA to FHSA).
+
+### D-28 Overlapping exports
+Several activity files per broker may overlap in time and accounts. They are imported one by one; the duplicate
+rule (D-8) drops rows already in the ledger and keeps the rest, so older and newer exports can be combined.
+
+### D-29 Dividend share-count check
+Where the broker states the shares a dividend was paid on (Questrade: "ON n SHS"), the importer compares it with the
+ledger's quantity on the record date. A mismatch raises `dividend_share_mismatch`, which usually points to missing
+history or a missing opening position.
+
+### D-30 Repository and branching
+One GitHub repository (monorepo) with one folder per service; branching, versioning and pull-request rules are in
+`CONTRIBUTING.md`. `main` holds only tagged releases (`ver-x.y.z`), `dev` is the integration branch, every change
+lands on `dev` through a reviewed pull request from a feature branch.
+
+### D-31 Opening positions without a known cost
+When the real purchase cost of an opening position is unknown, the user may enter it without cost: the app uses the
+market value on the opening date as cost, labels it "estimated cost" everywhere it appears, and the user can replace
+it later (a correction, D-7).
+
 ## Open questions
 
-- Q-1 Drop beta, market-cap group, dividend-growth rating, yield x growth matrix and "next payment" from v1?
-- Q-2 Which accounts exist at Wealthsimple and Questrade, and from what year does history start?
-- Q-3 Wealthsimple export samples (activity CSV and holdings CSV) are needed for `specs/import-wealthsimple.md`.
-- Q-4 Is Questrade's "positions" export available to drive reconciliation, or will snapshots be typed in?
-- Q-5 Backup policy: proposed nightly `pg_dump` + file-volume copy to a folder you choose, 30 days retained.
-- Q-6 The old spreadsheet's RBC account: in scope as a third broker, or history only?
+- Q-15 GitHub push access for the repository `ombg/portfolio-tracker` (details in chat).

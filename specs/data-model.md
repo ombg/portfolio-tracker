@@ -14,18 +14,18 @@ Every table marked (U) has `user_id uuid NOT NULL` with an RLS policy `user_id =
 | brokers | id, code (`questrade`, `wealthsimple`), name | global; more brokers = new rows + parser |
 | accounts (U) | id, user_id, portfolio_id, broker_id, external_number, name, type, is_registered, base_currency, status (`open`,`closed`,`archived`), management (`self_directed`,`robo`), analysis_level (`security`,`account`), opened_on, closed_on, notes, migration_meta jsonb | type in TFSA, FHSA, RRSP, RESP, NON_REGISTERED, OTHER; is_registered derived from type except OTHER; robo implies analysis_level account (D-14) |
 | currencies | code, name, minor_units | CAD, USD, EUR seeded |
-| securities | id, name, security_type (`stock`,`etf`,`fund`,`reit`,`cash_equivalent`), trading_currency, asset_class, issuer_country, fund_domicile, market_cap, market_cap_as_of, identifiers jsonb (isin, cusip, figi) | global; provider-filled; market-cap group derived (D-19) |
+| securities | id, name, security_type (`stock`,`etf`,`fund`,`reit`,`cash_equivalent`,`gic`), trading_currency, asset_class, issuer_country, fund_domicile, market_cap, market_cap_as_of, identifiers jsonb (isin, cusip, figi) | global; provider-filled; market-cap group derived (D-19) |
 | security_symbols | security_id, symbol, exchange, valid_from, valid_to | D-15 |
 | security_aliases (U nullable) | security_id, broker_id, alias, user_id | broker codes; global or per user |
 | sector_map | provider, provider_sector, gics_sector | D-9 |
 | security_overrides (U) | id, user_id, security_id, field, value, reason, created_at, superseded_at | sector, industry, region, exposure_region, asset_class, name... (FR-5) |
 | price_overrides (U) | user_id, security_id, date, close, reason, created_at | FR-5 |
 | fx_overrides (U) | user_id, base, quote, date, rate, reason, created_at | FR-5 |
-| transactions (U) | id, user_id, account_id, type, trade_date, settle_date, record_date NULL, security_id NULL, quantity, split_ratio NULL, price, commission, gross_amount, net_amount, currency, fx_rate_to_cad NULL, fx_source, withholding_tax, related_id NULL, link_basis NULL, group_id NULL, counterparty_account_id NULL, source_file_id, source_row_no, natural_key, raw jsonb, imported_at, import_batch_id | immutable (D-7) |
+| transactions (U) | id, user_id, account_id, type, trade_date, settle_date, record_date NULL, security_id NULL, quantity, split_ratio NULL, price, commission, gross_amount, net_amount, currency, fx_rate_to_cad NULL, fx_source, withholding_tax, related_id NULL, link_basis NULL, group_id NULL, transfer_status NULL, counterparty_account_id NULL, origin (`import`,`manual`,`opening_balance`), source_file_id NULL, source_row_no NULL, natural_key, raw jsonb, imported_at, import_batch_id NULL | immutable (D-7); source fields required when origin = import |
 | transaction_corrections (U) | id, user_id, transaction_id, field, old_value, new_value, reason, created_at | void = field `voided` |
 | allocation_targets (U) | user_id, portfolio_id, dimension (`sector`,`region`,`asset_class`,`currency`), bucket, target_pct | FR-11 |
-| broker_snapshots (U) | id, user_id, account_id, as_of, source (`import`,`manual`), source_file_id | D-11 |
-| snapshot_lines (U) | snapshot_id, security_id NULL, currency, quantity NULL, cash NULL | security NULL = cash line |
+| broker_snapshots (U) | id, user_id, account_id, as_of, source (`import`,`manual`), source_file_id NULL | D-11, D-22 |
+| snapshot_lines (U) | snapshot_id, security_id NULL, currency, quantity NULL, cash NULL, broker_book_value NULL, broker_market_value NULL, value_currency NULL | security NULL = cash line; broker values informational |
 | recalc_queue | account_id, from_date, enqueued_at | D-13 |
 | quality_issues (U) | id, user_id, kind, scope, ref, details jsonb, first_seen, resolved_at, resolution_note | see data-quality.md |
 | daily_positions (U) | user_id, account_id, security_id, date, quantity, avg_cost_native, book_value_native, book_value_rc, price, price_source, price_observed_at, fx_rate, fx_source, market_value_rc, flags | rc = reporting currency CAD; other currencies converted at read time |
@@ -33,13 +33,15 @@ Every table marked (U) has `user_id uuid NOT NULL` with an RLS policy `user_id =
 
 ### Transaction types
 BUY, SELL, DIVIDEND, DISTRIBUTION, DRIP, DEPOSIT, WITHDRAWAL, TRANSFER_IN, TRANSFER_OUT, FEE, INTEREST,
-FX_CONVERSION, SPLIT, SYMBOL_CHANGE, MERGER, SPIN_OFF, RETURN_OF_CAPITAL, WITHHOLDING_TAX, CORRECTION_ADJUSTMENT.
+FX_CONVERSION, SPLIT, SYMBOL_CHANGE, JOURNAL, MERGER, SPIN_OFF, RETURN_OF_CAPITAL, WITHHOLDING_TAX, GRANT,
+CORRECTION_ADJUSTMENT. WITHHOLDING_TAX rows may be negative (rebates).
 FEE rows may be negative (fee refunds, D-21).
 
 ### Linking rules
 - **DRIP**: one DIVIDEND (income) and one DRIP (share acquisition) share a `group_id` (PRD 4.3).
 - **FX conversion**: two FX_CONVERSION rows (one per currency) share a `group_id`; implied rate = |leg2 / leg1|.
-- **Internal transfer**: TRANSFER_OUT and TRANSFER_IN share a `group_id` and set `counterparty_account_id`.
+- **Internal transfer**: TRANSFER_OUT and TRANSFER_IN share a `group_id` and set `counterparty_account_id`
+  (detected from account numbers in the description, D-27; `transfer_status` = `linked` or `awaiting_counterpart`).
   A transfer from an institution outside the user's accounts has no counterparty and is an external flow.
   In-kind transfers store the broker-reported market value in `gross_amount` when the export provides it.
 - **Split / merger / spin-off**: SPLIT carries either a ratio (`split_ratio`, new per old; Questrade style) or a

@@ -17,15 +17,35 @@ stores the current set in `core.quality_issues (user_id, kind, scope, ref, first
 | stale_price / stale_fx | per market-data rules | timestamp shown in amber |
 | missing_metadata | no sector, region, asset class or currency | bucket "Unclassified" |
 | refresh_failed | last run Failed or Partial | dashboard status card |
+| dividend_share_mismatch | broker's "paid on n shares" differs from ledger quantity on record date (D-29) | badge on holding; points to missing history |
+| transfer_awaiting_counterpart | internal transfer whose other leg is not imported yet (D-27) | listed on the imports page |
+| history_gap_start | earliest transaction of an account is > 31 days after `opened_on` (D-24) | badge on account; suggests a fuller export or opening positions |
 
 Rule: an unresolved issue is never displayed as zero, success or "reconciled" (NFR-4). Totals that exclude
 something say so ("excludes 1 holding without a price").
 
 ## Reconciliation workflow (D-11)
-1. User imports a broker positions/balances file or enters a snapshot (account, as-of date, lines).
+1. User imports a broker holdings file (`specs/import-snapshots.md`) or enters a snapshot (account, as-of date,
+   lines). Accounts in the file that the tracker does not know are skipped (D-22).
 2. API computes ledger holdings and cash at the as-of date and compares line by line.
 3. Result per line: matched / quantity_difference / cash_difference / missing_in_ledger / missing_in_snapshot.
 4. User resolves by importing missing history, adding a correction (D-7), or accepting with a note.
    Accepted differences stay visible in the reconciliation history.
 
 Default tolerances: quantity 0.0001, cash 0.01 of the currency; editable per account.
+
+## Opening positions (D-24)
+Positions and cash held before an account's first exported activity. Entered in the UI or imported from a CSV
+(the real file stays in `data/`, D-20). Format, with invented values:
+
+```csv
+account_number,date,kind,symbol,exchange,quantity,price,amount,currency,note
+12345678,2021-01-15,position,ABC,TSX,100,20.00,,CAD,bought before history starts
+12345678,2021-01-15,cash,,,,,12.34,CAD,cash left before history starts
+```
+
+- `kind = position`: TRANSFER_IN of `quantity` at `price` (cost = quantity x price; empty price -> estimated cost,
+  D-31). `kind = cash`: cash TRANSFER_IN of `amount`. Both have `origin = 'opening_balance'`.
+- Both are external flows on `date` (positions at cost, which equals market value on a purchase date).
+- Symbols are as of `date`; later symbol changes apply normally.
+- Re-importing the file replaces earlier opening rows of the same account (they are the only rows with that origin).

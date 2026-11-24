@@ -61,6 +61,8 @@ A goroutine worker in portfolio-api drains `core.recalc_queue (account_id, from_
 
 ## Repository layout
 
+One repository for all services (D-30); workflow in `CONTRIBUTING.md`.
+
 ```
 CLAUDE.md                 project guide for Claude Code
 specs/                    this folder; source of truth for behaviour
@@ -71,11 +73,19 @@ services/importer/        Python package (parsers/questrade.py, parsers/wealthsi
 services/market-data/     Python package (providers/yahoo.py, providers/boc.py)
 testdata/                 golden fixtures (see specs/testing.md)
 docker-compose.yml, Makefile, .env.example
+data/                     private real exports (git-ignored, D-20)
+backups/                  nightly backups (git-ignored, D-18)
 ```
 
 ## Configuration
 `.env`: `POSTGRES_PASSWORD`, `SERVICE_TOKEN`, `SESSION_SECRET`, `REPORTING_CURRENCY_DEFAULT=CAD`,
 `FILES_DIR=/data/files`, `TZ_MARKET=America/Toronto`. Volumes: `pgdata`, `files`.
 
-## Backups (proposed, Q-5)
-Nightly `pg_dump` plus a copy of the `files` volume into a host folder; keep 30 days.
+## Backups (D-18)
+A `backup` container runs nightly at 02:00 local time: `pg_dump -Fc` and a copy of the `files` volume into
+`./backups/YYYY-MM-DD/` on the host (git-ignored), deleting folders older than 30 days.
+Restore: `make restore DATE=YYYY-MM-DD` stops the API, runs `pg_restore --clean`, copies files back, restarts.
+
+## Private data (D-20)
+`data/` holds real exports and the account inventory and is git-ignored. Nothing from it goes into code, specs,
+fixtures or commits.

@@ -12,7 +12,7 @@ Interface `Provider` with `quotes(symbols)`, `history(symbol, start, end)`, `met
 | Yahoo Finance (`yfinance`) | intraday quotes, daily closes, sector/industry/country, dividend history, intraday FX | free, unofficial, rate-limited; batch symbols; retry with backoff |
 | Bank of Canada Valet API | official daily USD/CAD and EUR/CAD history | published once per business day; used for transaction-date and historical FX |
 
-Symbol format for Yahoo: TSX `XGRO.TO`, TSX units `AP-UN.TO`, US as is.
+Symbol format for Yahoo: TSX `QZGR.TO`, TSX units `AP-UN.TO`, US as is.
 
 ## Schedule (D-3)
 - Every 30 minutes, 09:30-16:30 America/Toronto, on TSX/NYSE trading days (holiday calendar via
@@ -34,7 +34,8 @@ Each run writes `market.refresh_runs`. API exposes `GET /api/market/status`:
 | Market closed | outside schedule; last close shown with its date |
 
 ## Metadata
-Provider sector strings are mapped to GICS through `core.sector_map` (D-9). Unknown strings -> "Unclassified" plus a
+Provider sector strings are mapped to GICS through `core.sector_map` (D-9). Market cap (stocks only) is refreshed
+weekly into `securities.market_cap`; the group thresholds are in D-19. Unknown strings -> "Unclassified" plus a
 data-quality issue. Fund domicile and asset class come from the provider when available, else default by security
 type and must be confirmed by the user (data-quality issue `missing_metadata`).
 
