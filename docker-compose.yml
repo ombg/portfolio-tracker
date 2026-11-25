@@ -1,5 +1,5 @@
-# Local stack (specs/architecture.md). M1: database and portfolio-api.
-# web (Caddy), importer, market-data and backup join in later milestones.
+# Local stack (specs/architecture.md). M1: database, portfolio-api and web (Caddy + SPA).
+# importer, market-data and backup join in later milestones.
 services:
   db:
     image: postgres:16
@@ -27,9 +27,15 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    # Published on localhost only until Caddy fronts it.
+    # Not published: the browser reaches the API only through web (D-16).
+
+  web:
+    build:
+      context: services/web
+    depends_on:
+      - api
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:${WEB_PORT:-8080}:80"
 
 volumes:
   pgdata:

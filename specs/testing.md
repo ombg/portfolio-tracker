@@ -22,6 +22,7 @@ Purpose: prove the numbers are right, not just that screens render (PRD amendmen
 | API tests | Go `httptest` against a real Postgres | endpoints, auth, scopes, error and "data-quality" responses | `make test` |
 | Provider tests | pytest with recorded HTTP responses | Yahoo / Bank of Canada parsing, partial failures, stale detection | `make test` |
 | End-to-end | Playwright against `docker compose` | the 13 PRD acceptance criteria, clicked through in a browser with synthetic users and files | `make e2e`, before each milestone is closed |
+| Type check | `tsc` | the web app and Playwright tests compile | `make test` |
 | Private smoke test | `make smoke-private` (local only) | real exports in `data/` import without errors, and the replayed ledger reconciles to the real holdings files | on Oliver's machine, on demand |
 
 ## Golden fixtures (`testdata/`)
@@ -41,6 +42,13 @@ Purpose: prove the numbers are right, not just that screens render (PRD amendmen
 | synthetic/history_gap | sale before any buy, late first transaction -> negative_holding, history_gap_start, fixed by an opening-positions CSV |
 
 Each fixture folder holds `input/` files and `expected/*.json`. A failing test prints the first differing field.
+
+## End-to-end runs
+`make e2e` runs `scripts/e2e.sh`: it starts a separate Compose project (`pt-e2e`, port 8090, own volumes) with
+random secrets, creates two synthetic users with `ptctl`, runs Playwright (Chromium) from `services/web/e2e`, and
+removes the stack and its volumes afterwards, also on failure. Row checks compare every table cell exactly so one
+column cannot hide a wrong value in another. Covered so far: AC-1 (`ac1-accounts.spec.ts`), plus FR-1 isolation and
+FR-2 edit, close and archive.
 
 ## Private smoke test
 `make smoke-private` runs the importer and the calculation engine on everything in `data/` inside the local stack:

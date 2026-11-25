@@ -3,3 +3,7 @@ data/*
 context/*.xlsx
 backups/
 .env
+node_modules/
+services/web/dist/
+services/web/test-results/
+services/web/playwright-report/

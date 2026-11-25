@@ -59,6 +59,15 @@ browser --HTTPS--> web (Caddy + React SPA)
 
 Errors from every endpoint have the shape `{"error": "<stable code>", "message": "<text>"}`.
 
+### Web app (M1)
+`services/web`: React + TypeScript (Vite, TanStack Query), built into a Caddy image. Caddy serves the SPA and proxies
+`/api/*` to portfolio-api, which is no longer published to the host. Compose publishes Caddy on
+`127.0.0.1:${WEB_PORT:-8080}` over plain HTTP: browsers treat `http://localhost` as a secure context, so the Secure
+session cookie works. TLS is required before the app is reachable from another machine. Caddy sets a strict
+Content-Security-Policy (`default-src 'self'`) and `X-Frame-Options: DENY`.
+M1 screens: sign in; accounts table (open and closed, archived behind "Show archived", robo accounts labelled
+"Managed, account-level only"); one form to create and edit accounts that shows the server's field errors.
+
 ### Accounts (FR-2, D-2, D-14)
 All routes require a session and run in `WithUser`; another user's account answers 404 exactly like a missing one.
 - `GET /api/brokers`, `GET /api/currencies`: reference data for the account form.
