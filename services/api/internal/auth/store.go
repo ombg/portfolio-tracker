@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/ombg/portfolio-tracker/services/api/internal/db"
+	"github.com/ombg/portfolio-tracker/services/api/internal/db/dbq"
 )
 
 var (
@@ -55,7 +56,9 @@ func (s *Store) Login(ctx context.Context, email, password string) (Session, err
 	var userID uuid.UUID
 	var hash string
 	err := db.AsRequestRole(ctx, s.Pool, func(tx pgx.Tx) error {
-		return tx.QueryRow(ctx, "SELECT user_id, password_hash FROM core.auth_user_for_login($1)", email).Scan(&userID, &hash)
+		row, err := dbq.New(tx).AuthUserForLogin(ctx, email)
+		userID, hash = row.UserID, row.PasswordHash
+		return err
 	})
 	found := err == nil
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
@@ -74,8 +77,9 @@ func (s *Store) Login(ctx context.Context, email, password string) (Session, err
 
 	var sess Session
 	err = db.AsRequestRole(ctx, s.Pool, func(tx pgx.Tx) error {
-		return tx.QueryRow(ctx, "SELECT session_id, expires_at FROM core.session_create($1, $2)",
-			userID, int32(s.TTL/time.Second)).Scan(&sess.ID, &sess.ExpiresAt)
+		row, err := dbq.New(tx).SessionCreate(ctx, dbq.SessionCreateParams{UserID: userID, TtlSeconds: int32(s.TTL / time.Second)})
+		sess = Session{ID: row.SessionID, ExpiresAt: row.ExpiresAt}
+		return err
 	})
 	if err != nil {
 		return Session{}, fmt.Errorf("create session: %w", err)
@@ -85,23 +89,25 @@ func (s *Store) Login(ctx context.Context, email, password string) (Session, err
 
 // UserID resolves a session to its user and records activity.
 func (s *Store) UserID(ctx context.Context, sessionID uuid.UUID) (uuid.UUID, error) {
-	var userID *uuid.UUID
+	var userID uuid.UUID
 	err := db.AsRequestRole(ctx, s.Pool, func(tx pgx.Tx) error {
-		return tx.QueryRow(ctx, "SELECT core.session_user_id($1, $2)", sessionID, int32(s.Idle/time.Second)).Scan(&userID)
+		var err error
+		userID, err = dbq.New(tx).SessionUserID(ctx, dbq.SessionUserIDParams{SessionID: sessionID, IdleSeconds: int32(s.Idle / time.Second)})
+		return err
 	})
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("resolve session: %w", err)
 	}
-	if userID == nil {
+	// session_user_id returns NULL for no valid session, which scans as the zero UUID.
+	if userID == uuid.Nil {
 		return uuid.Nil, ErrNoSession
 	}
-	return *userID, nil
+	return userID, nil
 }
 
 func (s *Store) Revoke(ctx context.Context, sessionID uuid.UUID) error {
 	return db.AsRequestRole(ctx, s.Pool, func(tx pgx.Tx) error {
-		_, err := tx.Exec(ctx, "SELECT core.session_revoke($1)", sessionID)
-		return err
+		return dbq.New(tx).SessionRevoke(ctx, sessionID)
 	})
 }
 
@@ -109,8 +115,9 @@ func (s *Store) Revoke(ctx context.Context, sessionID uuid.UUID) error {
 func (s *Store) Profile(ctx context.Context, userID uuid.UUID) (Profile, error) {
 	var p Profile
 	err := db.WithUser(ctx, s.Pool, userID, func(tx pgx.Tx) error {
-		return tx.QueryRow(ctx, "SELECT id, email, display_name, reporting_currency FROM core.current_user_profile()").
-			Scan(&p.ID, &p.Email, &p.DisplayName, &p.ReportingCurrency)
+		row, err := dbq.New(tx).CurrentUserProfile(ctx)
+		p = Profile{ID: row.ID, Email: row.Email, DisplayName: row.DisplayName, ReportingCurrency: row.ReportingCurrency}
+		return err
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Profile{}, ErrNoSession

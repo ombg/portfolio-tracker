@@ -1,0 +1,36 @@
+# sqlc generates typed Go for every query in internal/db/queries from the migrations.
+# Run `make generate` after changing a query or migration; `make test` fails if the
+# generated code is out of date.
+version: "2"
+sql:
+  - engine: postgresql
+    schema: ../../db/migrations   # golang-migrate layout; sqlc reads only the .up.sql files
+    queries: internal/db/queries
+    gen:
+      go:
+        package: dbq
+        out: internal/db/dbq
+        sql_package: pgx/v5
+        emit_pointers_for_null_types: true
+        emit_empty_slices: true
+        overrides:
+          - db_type: uuid
+            go_type: github.com/google/uuid.UUID
+          - db_type: uuid
+            nullable: true
+            go_type:
+              import: github.com/google/uuid
+              type: UUID
+              pointer: true
+          - db_type: pg_catalog.timestamptz
+            go_type: time.Time
+          - db_type: timestamptz
+            go_type: time.Time
+          - db_type: date
+            go_type: time.Time
+          - db_type: date
+            nullable: true
+            go_type:
+              import: time
+              type: Time
+              pointer: true

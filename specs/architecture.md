@@ -31,6 +31,10 @@ browser --HTTPS--> web (Caddy + React SPA)
 - **Table ownership**: a service writes only its own schema. Others read via views or ask the owner over HTTP.
   The ledger (`core.transactions`) is written only by portfolio-api.
 - **Migrations** for all schemas live in `db/migrations` and are applied by portfolio-api at start-up.
+- **Queries** in portfolio-api are written as SQL in `services/api/internal/db/queries/*.sql` and compiled by sqlc
+  (pinned Docker image, `make generate`) into `internal/db/dbq`, which is checked in. `make test` runs `sqlc diff`
+  first and fails when the generated code is stale. Only transaction setup (`SET LOCAL ROLE`, `app.user_id`) and
+  tests use hand-written SQL.
 - **User isolation**: portfolio-api connects as the database owner only to run migrations; every request
   transaction starts with `SET LOCAL ROLE pt_app` and `SET LOCAL app.user_id = $1`, and forced RLS policies on every
   user-owned table filter by it (D-1, `data-model.md`). Internal calls carry the user id explicitly.

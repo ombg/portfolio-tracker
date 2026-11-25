@@ -104,10 +104,18 @@ func WithUser(ctx context.Context, pool *pgxpool.Pool, userID uuid.UUID, fn func
 		if _, err := tx.Exec(ctx, "SET LOCAL ROLE "+RequestRole); err != nil {
 			return fmt.Errorf("set request role: %w", err)
 		}
-		// SET LOCAL takes no parameters; set_config(..., true) is the transaction-local equivalent.
-		if _, err := tx.Exec(ctx, "SELECT set_config('app.user_id', $1, true)", userID.String()); err != nil {
-			return fmt.Errorf("set app.user_id: %w", err)
+		if err := SetUser(ctx, tx, userID); err != nil {
+			return err
 		}
 		return fn(tx)
 	})
+}
+
+// SetUser sets app.user_id for the rest of tx, so forced RLS policies admit that user's rows.
+func SetUser(ctx context.Context, tx pgx.Tx, userID uuid.UUID) error {
+	// SET LOCAL takes no parameters; set_config(..., true) is the transaction-local equivalent.
+	if _, err := tx.Exec(ctx, "SELECT set_config('app.user_id', $1, true)", userID.String()); err != nil {
+		return fmt.Errorf("set app.user_id: %w", err)
+	}
+	return nil
 }
