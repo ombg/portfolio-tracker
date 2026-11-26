@@ -69,7 +69,7 @@ FEE rows may be negative (fee refunds, D-21).
 | Table | Columns | Notes |
 | --- | --- | --- |
 | source_files (U) | id, user_id, sha256, original_name, size, media_type, stored_path, uploaded_at, deleted_at | D-12; unique (user, sha256) while not deleted (D-8) |
-| import_batches (U) | id, user_id, source_file_id, broker_id, account_id NULL, parser, parser_version, status (`parsed`,`needs_review`,`committed`,`discarded`,`failed`), counts jsonb, created_at, committed_at | FR-3 history; portfolio-api may update only status, committed_at and counts (commit, discard) |
+| import_batches (U) | id, user_id, source_file_id, broker_id, account_id NULL, parser, parser_version, status (`parsed`,`needs_review`,`committed`,`discarded`,`failed`), counts jsonb, created_at, committed_at | FR-3 history; `counts` = rows per status, or `failure` (reason) for a failed batch; portfolio-api may update only status, committed_at and counts (commit, discard) |
 | import_rows (U) | batch_id, row_no, user_id, raw jsonb, normalized jsonb, status (`ok`,`warning`,`error`,`duplicate`,`skipped`,`excluded`), messages jsonb, user_edits jsonb | preview + correction; `skipped` = untracked account (D-22), `excluded` = left out by the user; edited only by the importer |
 
 ## market schema (owner: market-data)

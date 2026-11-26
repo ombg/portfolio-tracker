@@ -1,5 +1,5 @@
-# Local stack (specs/architecture.md). M1: database, portfolio-api and web (Caddy + SPA).
-# importer, market-data and backup join in later milestones.
+# Local stack (specs/architecture.md): database, portfolio-api, importer and web (Caddy + SPA).
+# market-data and backup join in later milestones.
 services:
   db:
     image: postgres:16
@@ -25,10 +25,30 @@ services:
       # web serves plain HTTP on 127.0.0.1, where Safari drops Secure cookies, so the default is false (D-34).
       # Set COOKIE_SECURE=true as soon as the app is served over HTTPS.
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      # Set as the pt_importer role's password after migrations (D-35).
+      IMPORTER_DB_PASSWORD: ${IMPORTER_DB_PASSWORD:?set IMPORTER_DB_PASSWORD in .env}
     depends_on:
       db:
         condition: service_healthy
     # Not published: the browser reaches the API only through web (D-16).
+
+  importer:
+    build:
+      context: services/importer
+      target: runtime
+    environment:
+      DB_HOST: db
+      DB_PASSWORD: ${IMPORTER_DB_PASSWORD:?set IMPORTER_DB_PASSWORD in .env}
+      SERVICE_TOKEN: ${SERVICE_TOKEN:?set SERVICE_TOKEN in .env}
+      FILES_DIR: /data/files
+    volumes:
+      - files:/data/files
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
+        condition: service_started  # api enables the pt_importer login after migrating
+    # Not published: only portfolio-api calls it, with the service token (D-16).
 
   web:
     build:
@@ -40,3 +60,4 @@ services:
 
 volumes:
   pgdata:
+  files:

@@ -20,6 +20,7 @@ Purpose: prove the numbers are right, not just that screens render (PRD amendmen
 | Calculation tests | Go `testing`, table-driven | quantity, average cost, realized gain, cash, TWR, XIRR, income, allocation on golden ledgers | `make test` |
 | Database tests | Go + testcontainers (Postgres in Docker) | migrations apply; RLS: user B never reads user A's rows through any query or endpoint; ledger immutability | `make test` |
 | API tests | Go `httptest` against a real Postgres | endpoints, auth, scopes, error and "data-quality" responses | `make test` |
+| Importer service tests | pytest in Docker against a throwaway migrated Postgres (`scripts/importer-test.sh`), as `pt_importer` | upload flow: originals stored unchanged, file duplicates (D-8), per-user isolation, error codes, refusal to run as a role that bypasses RLS | `make test` |
 | Provider tests | pytest with recorded HTTP responses | Yahoo / Bank of Canada parsing, partial failures, stale detection | `make test` |
 | End-to-end | Playwright against `docker compose` | the 13 PRD acceptance criteria, clicked through in a browser with synthetic users and files | `make e2e`, before each milestone is closed |
 | Type check | `tsc` | the web app and Playwright tests compile | `make test` |

@@ -119,3 +119,34 @@ func SetUser(ctx context.Context, tx pgx.Tx, userID uuid.UUID) error {
 	}
 	return nil
 }
+
+// ImporterRole is the importer service's own login role (D-35): no BYPASSRLS, writes only the imports schema.
+const ImporterRole = "pt_importer"
+
+// MinImporterPasswordLen is the shortest IMPORTER_DB_PASSWORD accepted.
+const MinImporterPasswordLen = 24
+
+// SetImporterLogin lets ImporterRole log in with password, or removes its login when password is empty, so the
+// role can only be used while the deployment configures it (D-35). Run it as the owner after migrations.
+func SetImporterLogin(ctx context.Context, pool *pgxpool.Pool, password string) error {
+	if password == "" {
+		if _, err := pool.Exec(ctx, "ALTER ROLE "+ImporterRole+" NOLOGIN PASSWORD NULL"); err != nil {
+			return fmt.Errorf("disable importer login: %w", err)
+		}
+		return nil
+	}
+	if len(password) < MinImporterPasswordLen {
+		return fmt.Errorf("IMPORTER_DB_PASSWORD must be at least %d characters", MinImporterPasswordLen)
+	}
+	// ALTER ROLE takes no parameters; format(%L) quotes the password as a literal on the server.
+	var stmt string
+	if err := pool.QueryRow(ctx, "SELECT format('ALTER ROLE "+ImporterRole+" LOGIN PASSWORD %L', $1::text)",
+		password).Scan(&stmt); err != nil {
+		return fmt.Errorf("enable importer login: %w", err)
+	}
+	if _, err := pool.Exec(ctx, stmt); err != nil {
+		// Never wrap pgx's error here: it may echo the statement, which holds the password.
+		return errors.New("enable importer login: ALTER ROLE failed")
+	}
+	return nil
+}

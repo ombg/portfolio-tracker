@@ -3,6 +3,12 @@
 Releases are tagged `ver-x.y.z` on `main` (`CONTRIBUTING.md`). Newest first.
 
 ## Unreleased
+- importer service (`services/importer`, Python 3.12, FastAPI): `POST /internal/imports` stores the original file
+  unchanged and content-addressed, refuses a file the user already imported (D-8, D-12), runs the broker's parser and
+  stages its rows; internal network only, service token required. Parsers follow in the next changes.
+- portfolio-api sets the `pt_importer` password from `IMPORTER_DB_PASSWORD` after migrating (D-35, confirmed).
+- `.env` needs `IMPORTER_DB_PASSWORD` and a `SERVICE_TOKEN` of at least 32 bytes (see `.env.example`).
+- `make test` also runs the importer tests (`make importer-test`); `make importer-lock` re-locks its dependencies.
 - Ledger and import schema (migration 000003): securities, symbols with non-overlapping validity, aliases,
   immutable `transactions` with `transaction_corrections` and the `v_ledger` view, and the `imports` staging tables;
   forced RLS throughout and a `pt_importer` role that can write only `imports` (D-7, D-8, D-35).

@@ -27,11 +27,14 @@ trap cleanup EXIT
 {
   echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)"
   echo "SESSION_SECRET=$(openssl rand -base64 48)"
+  echo "IMPORTER_DB_PASSWORD=$(openssl rand -hex 24)"
+  echo "SERVICE_TOKEN=$(openssl rand -hex 32)"
   echo "WEB_PORT=$PORT"
 } > "$ENV_FILE"
 
 echo "Starting stack $PROJECT on http://localhost:$PORT"
-dc up -d --build --quiet-pull
+# --wait: every service with a health check (db, importer) must become healthy.
+dc up -d --build --quiet-pull --wait
 
 for _ in $(seq 60); do
   if curl -fsS "http://localhost:$PORT/api/health" >/dev/null 2>&1; then break; fi
