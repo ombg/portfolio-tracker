@@ -76,6 +76,7 @@ async def _read_limited(file: UploadFile, limit: int) -> bytes:
     while chunk := await file.read(1 << 20):
         size += len(chunk)
         if size > limit:
-            raise ImportError_(413, "file_too_large", f"files are limited to {limit // (1024 * 1024)} MiB")
+            shown = f"{limit // (1024 * 1024)} MiB" if limit >= 1024 * 1024 else f"{limit} bytes"
+            raise ImportError_(413, "file_too_large", f"files are limited to {shown}")
         chunks.append(chunk)
     return b"".join(chunks)

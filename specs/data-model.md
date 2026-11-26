@@ -72,6 +72,27 @@ FEE rows may be negative (fee refunds, D-21).
 | import_batches (U) | id, user_id, source_file_id, broker_id, account_id NULL, parser, parser_version, status (`parsed`,`needs_review`,`committed`,`discarded`,`failed`), counts jsonb, created_at, committed_at | FR-3 history; `counts` = rows per status, or `failure` (reason) for a failed batch; portfolio-api may update only status, committed_at and counts (commit, discard) |
 | import_rows (U) | batch_id, row_no, user_id, raw jsonb, normalized jsonb, status (`ok`,`warning`,`error`,`duplicate`,`skipped`,`excluded`), messages jsonb, user_edits jsonb | preview + correction; `skipped` = untracked account (D-22), `excluded` = left out by the user; edited only by the importer |
 
+### Normalized import row
+`import_rows.normalized` is the parser's proposal for one ledger row; commit (#18) turns it into
+`core.transactions`. All decimals are strings without exponent or trailing zeros; dates are ISO strings.
+
+| Field | Meaning |
+| --- | --- |
+| account_id | tracked account (uuid) |
+| type | ledger type (see Transaction types) |
+| trade_date, settle_date, record_date, pay_date | dates; record and pay date for income and splits |
+| security | null, or `{symbol, exchange, broker_code, security_id, proposed, name, security_type, trading_currency, gic}`: a listed symbol (`exchange` TSX/US), or a broker code resolved through an alias (`security_id`) or proposed from the file (`proposed = {symbol, exchange, from_row}`); GICs carry `gic = {issuer, rate, maturity}` |
+| quantity, split_ratio, price, commission, gross_amount, net_amount, currency | as in `transactions` |
+| fx_rate, fx_source | broker-stated rate, if any |
+| group | `{kind, key}` linking legs within the file (`fx`, `symbol_change`, `journal`) |
+| related_row | row number this row belongs to (withholding tax -> dividend) |
+| counterparty_account_id, transfer_status | internal transfer (D-27) |
+| shares_on | share count the broker paid income on (D-29) |
+| natural_key | duplicate key (D-8), per broker spec |
+
+A `skipped` row for an untracked account holds `{"untracked_account": {number, account_type, proposed_type,
+proposed_management}}` instead (D-22). Error rows that could not be mapped at all have `normalized = null`.
+
 ## market schema (owner: market-data)
 
 | Table | Columns | Notes |

@@ -3,6 +3,11 @@
 Releases are tagged `ver-x.y.z` on `main` (`CONTRIBUTING.md`). Newest first.
 
 ## Unreleased
+- Questrade activities parser (XLSX and CSV): every action in `specs/import-questrade.md`, withholding tax linked to
+  its dividend, internal transfers (D-27), GICs (D-26), FX, symbol-change and journal pairs, untracked accounts
+  skipped with a proposal (D-22), natural keys (D-8). Golden fixture in `testdata/questrade/synthetic_activities`.
+- Spec corrections from the real format: blank-action `TAX WITHHELD` rows are withholding tax, GICs trade at 1.00,
+  description dates are month first, securities-lending rows carry no symbol.
 - importer service (`services/importer`, Python 3.12, FastAPI): `POST /internal/imports` stores the original file
   unchanged and content-addressed, refuses a file the user already imported (D-8, D-12), runs the broker's parser and
   stages its rows; internal network only, service token required. Parsers follow in the next changes.

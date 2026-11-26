@@ -34,7 +34,7 @@ dc up -d --wait --quiet-pull db >/dev/null 2>&1
 # Applies migrations and enables the pt_importer login, exactly as the stack does at start-up.
 dc run --rm --build --quiet-pull api migrate >/dev/null 2>&1 || dc run --rm api migrate
 
-docker run --rm --network "${PROJECT}_default" \
+docker run --rm --network "${PROJECT}_default" -v "$ROOT/testdata:/testdata:ro" -e TESTDATA=/testdata \
   -e DB_HOST=db -e DB_PASSWORD="$IMPORTER_DB_PASSWORD" -e SERVICE_TOKEN="$SERVICE_TOKEN" \
   -e OWNER_DSN="postgresql://portfolio:$POSTGRES_PASSWORD@db:5432/portfolio" -e OWNER_PASSWORD="$POSTGRES_PASSWORD" \
   "$IMAGE" python -m pytest "$@"
