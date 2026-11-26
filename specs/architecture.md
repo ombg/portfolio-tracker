@@ -37,7 +37,8 @@ browser --HTTPS--> web (Caddy + React SPA)
   tests use hand-written SQL.
 - **User isolation**: portfolio-api connects as the database owner only to run migrations; every request
   transaction starts with `SET LOCAL ROLE pt_app` and `SET LOCAL app.user_id = $1`, and forced RLS policies on every
-  user-owned table filter by it (D-1, `data-model.md`). Internal calls carry the user id explicitly.
+  user-owned table filter by it (D-1, `data-model.md`). Internal calls carry the user id explicitly; the importer
+  connects as its own role `pt_importer` and sets `app.user_id` from that id (D-35).
 - **Money**: never floats. Go uses `decimal.Decimal`, Python uses `decimal.Decimal`, Postgres `NUMERIC(24,8)`.
 - **Time**: timestamps in UTC (`timestamptz`); trade and settlement dates are `date`; market schedule in
   America/Toronto.

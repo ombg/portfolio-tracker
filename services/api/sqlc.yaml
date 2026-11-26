@@ -26,6 +26,24 @@ sql:
             go_type: time.Time
           - db_type: timestamptz
             go_type: time.Time
+          - db_type: pg_catalog.timestamptz
+            nullable: true
+            go_type:
+              import: time
+              type: Time
+              pointer: true
+          - db_type: timestamptz
+            nullable: true
+            go_type:
+              import: time
+              type: Time
+              pointer: true
+          # Money and quantities are decimals end to end (CLAUDE.md rule 3).
+          - db_type: pg_catalog.numeric
+            go_type: github.com/shopspring/decimal.Decimal
+          - db_type: pg_catalog.numeric
+            nullable: true
+            go_type: github.com/shopspring/decimal.NullDecimal
           - db_type: date
             go_type: time.Time
           - db_type: date

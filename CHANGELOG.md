@@ -3,6 +3,10 @@
 Releases are tagged `ver-x.y.z` on `main` (`CONTRIBUTING.md`). Newest first.
 
 ## Unreleased
+- Ledger and import schema (migration 000003): securities, symbols with non-overlapping validity, aliases,
+  immutable `transactions` with `transaction_corrections` and the `v_ledger` view, and the `imports` staging tables;
+  forced RLS throughout and a `pt_importer` role that can write only `imports` (D-7, D-8, D-35).
+- Generated Go uses `decimal.Decimal` for NUMERIC columns and `*time.Time` for nullable timestamps.
 
 ## ver-0.1.0 (2026-11-26)
 M1 Foundation: AC-1 passes in the browser.

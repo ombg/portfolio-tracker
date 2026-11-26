@@ -1,6 +1,6 @@
 # Decisions and PRD review
 
-Status: proposed 2026-11-19; Oliver's answers folded in on 2026-11-20, 2026-11-21, 2026-11-23, 2026-11-24 and 2026-11-25.
+Status: proposed 2026-11-19; Oliver's answers folded in on 2026-11-20, 2026-11-21, 2026-11-23, 2026-11-24 and 2026-11-25; D-35 proposed 2026-11-26.
 Source of requirements: `chatgpt/docs/portfolio-tracker-requirements.md` (the PRD).
 This file records (a) where the PRD needs clarification or a change and (b) every design decision taken to satisfy it.
 Each decision has an ID; specs reference them as `D-n`. Superseded decisions stay here, marked as such.
@@ -272,6 +272,28 @@ Amends D-33's cookie flags. Fix approved by Oliver 2026-11-25. Found while testi
   cookie, instead of showing the sign-in page again without a message (NFR-4).
 - `make e2e` runs in Chromium, Firefox and WebKit (Safari's engine).
 
+### D-35 Database roles and write paths for the ledger and imports
+Proposed 2026-11-26 with M2 (issue #13); awaiting Oliver's confirmation (Q-18).
+- **Importer role.** The importer parses untrusted files, so it never gets the owner's credentials. It connects as
+  its own login role `pt_importer` (no BYPASSRLS) and sets `app.user_id` per transaction from the user id that
+  portfolio-api passes with each internal call, so the same RLS policies apply. The migration creates the role
+  without login; portfolio-api enables login with `IMPORTER_DB_PASSWORD` when the importer service is added (#14).
+- **Who writes what.** pt_importer: SELECT on the reference tables, accounts, securities, symbols, aliases and
+  transactions (to resolve rows and pre-check duplicates); SELECT, INSERT, UPDATE on `imports.*`. pt_app: inserts
+  transactions, corrections, securities, symbols and its own aliases; reads `imports.*`; updates only a batch's
+  status, committed_at and counts (commit, discard). Row corrections in the preview go through the importer, which
+  re-validates the row. Neither role may DELETE anything or UPDATE the ledger.
+- **Security master is shared.** Securities and symbols are global facts, so any user's import may add them, and a
+  SYMBOL_CHANGE may close a symbol period (`valid_to`), visible to every user. Accepted for a private, invited-users
+  install; per-user aliases cover broker codes. Global aliases are maintained by the owner only.
+- **Late transfer legs.** When the other leg of an internal transfer arrives (D-27), the link (`group_id`,
+  `counterparty_account_id`, `transfer_status`) is written as corrections with reason "linked automatically
+  (D-27)", never as an UPDATE of the stored row (D-7).
+- **Duplicates count stored rows.** The row duplicate rule (D-8) counts `core.transactions`, not `v_ledger`, so
+  re-importing a file does not bring back rows the user voided.
+
 ## Open questions
 
-None open. Q-15 (GitHub push access) and Q-17 (D-33 confirmation) closed 2026-11-24.
+- Q-18: confirm D-35 (importer role, write paths, shared security master, links as corrections).
+
+Closed: Q-15 (GitHub push access) and Q-17 (D-33 confirmation), 2026-11-24.
