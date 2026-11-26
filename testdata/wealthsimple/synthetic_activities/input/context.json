@@ -1,0 +1,9 @@
+{
+  "_comment": "Tracked accounts the parser is given (ParseContext). FHSA is stored without the currency suffix on purpose. Synthetic (D-20).",
+  "broker": "wealthsimple",
+  "accounts": [
+    {"id": "21000000-0000-0000-0000-000000000001", "external_number": "SY12AB345CAD", "name": "Synthetic WS TFSA", "type": "TFSA", "base_currency": "CAD"},
+    {"id": "21000000-0000-0000-0000-000000000002", "external_number": "SY12AB346", "name": "Synthetic WS FHSA", "type": "FHSA", "base_currency": "CAD"}
+  ],
+  "aliases": {}
+}

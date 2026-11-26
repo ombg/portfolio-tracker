@@ -84,14 +84,15 @@ FEE rows may be negative (fee refunds, D-21).
 | security | null, or `{symbol, exchange, broker_code, security_id, proposed, name, security_type, trading_currency, gic}`: a listed symbol (`exchange` TSX/US), or a broker code resolved through an alias (`security_id`) or proposed from the file (`proposed = {symbol, exchange, from_row}`); GICs carry `gic = {issuer, rate, maturity}` |
 | quantity, split_ratio, price, commission, gross_amount, net_amount, currency | as in `transactions` |
 | fx_rate, fx_source | broker-stated rate, if any |
-| group | `{kind, key}` linking legs within the file (`fx`, `symbol_change`, `journal`) |
-| related_row | row number this row belongs to (withholding tax -> dividend) |
+| group | `{kind, key}` linking legs within the file (`fx`, `symbol_change`, `journal`, `split`) |
+| related_row, link_basis | row number this row belongs to (withholding tax -> dividend) and how it was found (`single`, `ratio`) |
+| allocations | `[{row, amount}]` when one tax row is split across several dividends (`link_basis = allocated`); the amounts sum to `net_amount` |
 | counterparty_account_id, transfer_status | internal transfer (D-27) |
 | shares_on | share count the broker paid income on (D-29) |
 | natural_key | duplicate key (D-8), per broker spec |
 
 A `skipped` row for an untracked account holds `{"untracked_account": {number, account_type, proposed_type,
-proposed_management}}` instead (D-22). Error rows that could not be mapped at all have `normalized = null`.
+proposed_management}}` instead, plus `proposed_base_currency` for Wealthsimple (D-22). Error rows that could not be mapped at all have `normalized = null`.
 
 ## market schema (owner: market-data)
 

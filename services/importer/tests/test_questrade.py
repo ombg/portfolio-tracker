@@ -3,41 +3,23 @@
 from __future__ import annotations
 
 import hashlib
-import json
-import os
 import re
 import uuid
-from pathlib import Path
 
 import pytest
 
-from importer.parsers.base import ParseContext, ParseError, TrackedAccount
+from importer.parsers.base import ParseContext, ParseError
 from importer.parsers.questrade import QuestradeParser
 
 from .conftest import USER_A
+from .golden import TESTDATA, check, load_context, natural_keys
+from .golden import expected as golden_expected
 
-FIXTURE = Path(os.environ.get("TESTDATA", "/testdata")) / "questrade" / "synthetic_activities"
-
-DEFAULTS = {
-    "account_id": None, "type": None, "trade_date": None, "settle_date": None, "record_date": None, "pay_date": None,
-    "security": None, "quantity": None, "split_ratio": None, "price": None, "commission": "0", "gross_amount": None,
-    "net_amount": None, "currency": None, "fx_rate": None, "fx_source": None, "group": None, "related_row": None,
-    "counterparty_account_id": None, "transfer_status": None, "shares_on": None,
-}
-SECURITY_DEFAULTS = {
-    "symbol": None, "exchange": None, "broker_code": None, "security_id": None, "proposed": None, "name": None,
-    "security_type": None, "trading_currency": None, "gic": None,
-}
+FIXTURE = TESTDATA / "questrade" / "synthetic_activities"
 
 
 def context(**over) -> ParseContext:
-    c = json.loads((FIXTURE / "input" / "context.json").read_text())
-    return ParseContext(
-        broker="questrade",
-        accounts=tuple(TrackedAccount(**{**a, "id": uuid.UUID(a["id"])}) for a in c["accounts"]),
-        target_account_id=over.get("target_account_id"),
-        aliases={k: uuid.UUID(v) for k, v in c["aliases"].items()},
-    )
+    return load_context(FIXTURE, over.get("target_account_id"))
 
 
 def parse(name: str, **ctx):
@@ -45,43 +27,7 @@ def parse(name: str, **ctx):
 
 
 def expected(name: str) -> dict:
-    return json.loads((FIXTURE / "expected" / name).read_text())
-
-
-def expand(row: dict):
-    if row["status"] == "skipped":
-        return {"untracked_account": row["untracked"]} if "untracked" in row else None
-    n = row["normalized"]
-    if n is None:
-        return None
-    n = {**DEFAULTS, **n}
-    if n["security"] is not None:
-        n["security"] = {**SECURITY_DEFAULTS, **n["security"]}
-    return n
-
-
-def first_difference(want, got, path="") -> str | None:
-    if isinstance(want, dict) and isinstance(got, dict):
-        for k in sorted(set(want) | set(got)):
-            if (d := first_difference(want.get(k, "<missing>"), got.get(k, "<missing>"), f"{path}.{k}")) is not None:
-                return d
-        return None
-    return None if want == got else f"{path}: want {want!r}, got {got!r}"
-
-
-def check(rows, exp):
-    got = {r.row_no: r for r in rows}
-    assert sorted(got) == [e["row_no"] for e in exp["rows"]], "staged row numbers differ"
-    for e in exp["rows"]:
-        r = got[e["row_no"]]
-        actual = dict(r.normalized) if r.normalized is not None else None
-        if actual is not None:
-            actual.pop("natural_key", None)
-        diff = first_difference(
-            {"status": e["status"], "messages": e.get("messages", []), "normalized": expand(e)},
-            {"status": r.status, "messages": [[m["level"], m["code"]] for m in r.messages], "normalized": actual},
-        )
-        assert diff is None, f"row {e['row_no']}{diff}"
+    return golden_expected(FIXTURE, name)
 
 
 @pytest.mark.parametrize("ext", ["csv", "xlsx"])
@@ -107,12 +53,11 @@ def test_raw_row_is_kept_verbatim():
 
 
 def test_natural_keys():
-    main = {r.row_no: r.normalized["natural_key"] for r in parse("activities.csv")
-            if r.normalized and "natural_key" in r.normalized}
+    main = natural_keys(parse("activities.csv"))
     assert all(re.fullmatch(r"[0-9a-f]{64}", k) for k in main.values())
     assert len(set(main.values())) == len(main), "distinct rows must have distinct keys"
 
-    older = {r.row_no: r.normalized["natural_key"] for r in parse("activities_older.csv")}
+    older = natural_keys(parse("activities_older.csv"))
     for older_row, main_row in expected("activities_older.json")["same_natural_key_as_main"].items():
         assert older[int(older_row)] == main[main_row]  # D-8, D-28: overlap is recognised
     assert older[2] not in main.values()

@@ -3,6 +3,11 @@
 Releases are tagged `ver-x.y.z` on `main` (`CONTRIBUTING.md`). Newest first.
 
 ## Unreleased
+- Wealthsimple activities parser (CSV): every activity in `specs/import-wealthsimple.md`, description dates,
+  non-resident tax linked to its dividend (single, 13-17% ratio, or pro rata to the cent), USD sub-accounts, in-kind
+  transfers at market value, both name-change shapes, untracked robo accounts proposed (D-14, D-22), natural keys
+  (D-8). Golden fixture in `testdata/wealthsimple/synthetic_activities`.
+- Normalized rows gain `link_basis` and `allocations`; Questrade withholding links are `single`.
 - Questrade activities parser (XLSX and CSV): every action in `specs/import-questrade.md`, withholding tax linked to
   its dividend, internal transfers (D-27), GICs (D-26), FX, symbol-change and journal pairs, untracked accounts
   skipped with a proposal (D-22), natural keys (D-8). Golden fixture in `testdata/questrade/synthetic_activities`.

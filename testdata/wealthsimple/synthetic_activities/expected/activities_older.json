@@ -1,0 +1,51 @@
+{
+ "_comment": "Rows 3 and 4 equal main rows 2 and 3: equal natural keys (D-8, D-28).",
+ "same_natural_key_as_main": {
+  "3": 2,
+  "4": 3
+ },
+ "rows": [
+  {
+   "row_no": 2,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "DEPOSIT",
+    "trade_date": "2024-12-20",
+    "net_amount": "500",
+    "currency": "CAD"
+   }
+  },
+  {
+   "row_no": 3,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "DEPOSIT",
+    "trade_date": "2025-01-02",
+    "net_amount": "1000",
+    "currency": "CAD"
+   }
+  },
+  {
+   "row_no": 4,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "BUY",
+    "trade_date": "2025-01-06",
+    "settle_date": "2025-01-07",
+    "security": {
+     "symbol": "XQZG",
+     "exchange": "TSX",
+     "name": "Synthetic Growth ETF",
+     "trading_currency": "CAD"
+    },
+    "quantity": "10",
+    "price": "25.1",
+    "net_amount": "-251",
+    "currency": "CAD"
+   }
+  }
+ ]
+}
