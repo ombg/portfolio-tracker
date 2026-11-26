@@ -12,6 +12,8 @@ import (
 
 	"github.com/ombg/portfolio-tracker/services/api/internal/accounts"
 	"github.com/ombg/portfolio-tracker/services/api/internal/auth"
+	"github.com/ombg/portfolio-tracker/services/api/internal/importer"
+	"github.com/ombg/portfolio-tracker/services/api/internal/imports"
 )
 
 // Pinger is the part of the database pool the health check needs.
@@ -24,6 +26,8 @@ type Deps struct {
 	Auth         *auth.Store
 	Signer       *auth.Signer
 	Accounts     *accounts.Store
+	Imports      *imports.Store
+	Importer     *importer.Client // nil: uploads and corrections answer 503
 	CookieSecure bool // false only for plain-HTTP development outside localhost
 }
 
@@ -54,6 +58,9 @@ func NewRouter(d Deps) http.Handler {
 			r.Get("/api/me", a.me)
 			if d.Accounts != nil {
 				(&accountHandlers{store: d.Accounts}).routes(r)
+			}
+			if d.Imports != nil {
+				(&importHandlers{store: d.Imports, importer: d.Importer}).routes(r)
 			}
 		})
 	}

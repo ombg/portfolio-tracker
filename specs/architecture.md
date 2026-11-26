@@ -93,10 +93,36 @@ All routes require a session and run in `WithUser`; another user's account answe
 2. portfolio-api streams it to importer `POST /internal/imports`. importer stores the original (D-12), hashes it,
    rejects exact duplicates (D-8), parses, maps and validates rows into `imports.import_rows` with status
    `ok | warning | error | duplicate | skipped`. See "importer internal API" below.
-3. Browser shows preview (`GET /api/imports/{id}`); user fixes mappings (symbol alias, account, action) with
-   `PATCH /api/imports/{id}/rows/{row}`; fixes that are reusable (aliases) are saved as overrides.
+3. Browser shows preview (`GET /api/imports/{id}`); user fixes action, symbol or account with
+   `PATCH /api/imports/{id}/rows/{row}`; action and symbol fixes are saved as import rules and the batch is parsed
+   again (D-36).
 4. `POST /api/imports/{id}/commit`: portfolio-api reads staged `ok`/`warning` rows and inserts them into
    `core.transactions` in one transaction, then marks affected accounts dirty from the earliest date (D-13).
+
+### Import API (FR-3, D-22, D-36)
+All routes require a session; another user's import answers 404 exactly like a missing one. Errors from the
+importer (4xx, same shape) are passed on; when it cannot be reached or fails, 502 `importer_unavailable` (details
+only in the log); without `SERVICE_TOKEN` configured, uploads and corrections answer 503.
+- `POST /api/imports` (multipart: `file`, `broker`, optional `account_id`; header `X-Requested-With:
+  portfolio-tracker`, D-36) -> the importer's 201 body and `Location: /api/imports/{batch_id}`. The body is
+  re-encoded part by part into a pipe to the importer, never held in memory; other fields, a second file or no file
+  give 400, more than 25 MiB gives 413 `file_too_large`.
+- `GET /api/imports` -> `{"imports": [...]}`, newest first (at most 500): id, status, broker, `target_account_id`,
+  `accounts` (accounts with rows that may reach the ledger), file (id, name, size, sha256, uploaded_at), parser and
+  version, counts, `can_commit`, created_at, committed_at. History is per user (RLS), so the user is the caller.
+- `GET /api/imports/{id}` -> the same summary plus `rows` (row_no, status, raw, normalized, messages, user_edits)
+  and `untracked_accounts` (number, the importer's `proposal`, row count) for D-22.
+- `can_commit`: the batch is `parsed` or `needs_review`, has no `error` row and at least one `ok`/`warning` row.
+  Errors block commit until fixed or excluded.
+- `PATCH /api/imports/{id}/rows/{row}` with any of `type` (ledger type for the row's action), `security`
+  (`{"symbol","exchange"}`), `excluded` (bool), `account_id` -> `{"import": summary, "row": row}`. `type`,
+  `security` and `excluded` go to the importer; `account_id` (rows of an untracked account only) stores the row's
+  account number on that account when it has none (422 `unknown_account`, `account_broker_mismatch`,
+  `not_applicable`; 409 `account_has_number`, `duplicate_account_number`), then the batch is parsed again. A batch
+  that is not `parsed`/`needs_review` gives 409 `batch_closed`.
+- `POST /api/imports/{id}/reparse`: parse again after creating an account -> summary.
+- `POST /api/imports/{id}/discard`: status `discarded` (409 `batch_closed` unless open); rows and file stay, and the
+  same file can be uploaded again (D-8).
 
 ### importer internal API
 Every `/internal/*` call except health needs `X-Service-Token` (compared in constant time) and, for user data,
@@ -119,6 +145,15 @@ run as a role that can bypass RLS (D-35). Errors use the same `{"error", "messag
      `counts.failure` (the reason) and no rows.
   Parsers are versioned (`parser`, `parser_version` on each batch), so new mappings never change earlier batches
   (FR-3 item 8). Questrade and Wealthsimple parsers are added in #15 and #16.
+- `POST /internal/imports/{id}/reparse` -> 200 `{"batch_id", "status", "counts"}`: parses the stored original
+  again (re-hashed first) with the current accounts, aliases and import rules, applies row edits, and updates every
+  row in place; the batch takes the parser's current version. 404 `not_found` (also another user's batch), 409
+  `batch_closed` unless `parsed`/`needs_review`.
+- `PATCH /internal/imports/{id}/rows/{row}` with `type`, `security` and/or `excluded` -> as reparse, after saving
+  an action rule (422 `invalid_type`; `not_applicable` unless the row's action is unmapped or ruled), a symbol rule
+  (422 `invalid_security`: listed symbol and exchange TSX, TSXV, NEO, CSE or US; `not_applicable` unless the row's
+  code or symbol is unknown, proposed, ruled or its listing open) or the row's exclusion (`not_applicable` for
+  skipped rows). 400 `bad_request` for an empty or unknown field (D-36).
 
 ### Market data (FR-6)
 1. market-data scheduler runs every 30 minutes in market hours (D-3) for every security held by any user.
@@ -157,7 +192,8 @@ portfolio-api reads `DATABASE_URL` (owner connection, built by Compose from `POS
 (default `/migrations`, baked into the image from `db/migrations`), `LISTEN_ADDR` (default `:8080`),
 `SESSION_SECRET` (required to serve, at least 32 bytes), `IMPORTER_DB_PASSWORD` (set as the `pt_importer`
 password after every migration run; empty removes its login, D-35) and `COOKIE_SECURE` (the binary defaults to `true`; Compose
-sets `false` by default because it serves plain HTTP on 127.0.0.1, and it must be `true` behind HTTPS; D-34). It applies
+sets `false` by default because it serves plain HTTP on 127.0.0.1, and it must be `true` behind HTTPS; D-34),
+`SERVICE_TOKEN` and `IMPORTER_URL` (`http://importer:8000`) for the importer's internal API. It applies
 pending migrations on every start; `api migrate` (`make migrate`) applies them and exits. `GET /api/health` returns
 503 when the database is unreachable.
 

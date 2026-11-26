@@ -17,7 +17,7 @@ from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Any
 from uuid import UUID
 
-from .base import ParseContext, ParseError, Row
+from .base import EXCHANGE_CURRENCY, ParseContext, ParseError, Row, RuleKeys
 from .common import fmt
 
 HEADER = (
@@ -46,6 +46,14 @@ class WealthsimpleParser:
 
     def parse(self, data: bytes, filename: str, ctx: ParseContext) -> list[Row]:
         return _Parse(ctx).run(_read(data))
+
+    def rule_keys(self, raw: dict[str, Any]) -> RuleKeys:
+        return RuleKeys(action=action_key(raw), symbol=raw.get("symbol", "").strip().upper() or None)
+
+
+def action_key(rec: dict[str, Any]) -> str:
+    """Key of an action rule (D-36): the source's activity_type and activity_sub_type, as written."""
+    return f"{rec.get('activity_type', '')}|{rec.get('activity_sub_type', '')}"
 
 
 def _read(data: bytes) -> list[tuple[int, dict[str, str]]]:
@@ -194,10 +202,17 @@ class _Parse:
             "natural_key": natural_key(acct.id, rec),
         }
         t = _type(atype, sub, net)
+        if t is None and (t := self.ctx.action_rules.get(action_key(rec))):
+            w.msgs.append({"level": "info", "code": "action_rule",
+                           "text": f"{atype or '-'} / {sub or '-'} mapped to {t} by your rule"})
         if t is None:
             raise _RowError("unmapped_action", f"no mapping for {atype or '-'} / {sub or '-'}; map it in the preview")
         n["type"] = t
         n["security"] = self._security(rec)
+        if (sec := n["security"]) and rec["symbol"].strip().upper() in self.ctx.symbol_rules:
+            w.msgs.append({"level": "info", "code": "symbol_rule",
+                           "text": f"{rec['symbol'].strip().upper()} mapped to {sec['symbol']} ({sec['exchange']}) "
+                                   "by your rule"})
         if t in ("BUY", "SELL", "DIVIDEND", "SPLIT", "NAME_CHANGE") and n["security"] is None:
             raise _RowError("missing_symbol", f"{atype} row without a symbol")
 
@@ -229,7 +244,9 @@ class _Parse:
         sym = rec["symbol"].strip().upper()
         if not sym:
             return None
-        if sym.endswith(".TO"):
+        if rule := self.ctx.symbol_rules.get(sym):
+            symbol, exchange = rule
+        elif sym.endswith(".TO"):
             symbol, exchange = sym[:-3], "TSX"
         elif "." in sym and LISTED.match(sym):
             symbol, exchange = sym, "TSX"  # other class suffixes (.F, .U, .UN) are TSX listings
@@ -240,7 +257,7 @@ class _Parse:
         return {
             "symbol": symbol, "exchange": exchange, "broker_code": None, "security_id": None, "proposed": None,
             "name": rec["name"] or None, "security_type": None,
-            "trading_currency": {"TSX": "CAD", "US": "USD"}.get(exchange or ""), "gic": None,
+            "trading_currency": EXCHANGE_CURRENCY.get(exchange or ""), "gic": None,
         }
 
     # -- across rows ----------------------------------------------------------------------------------------------

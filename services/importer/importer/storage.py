@@ -56,3 +56,16 @@ def store(files_dir: Path, data: bytes, original_name: str) -> tuple[str, str]:
     if _file_sha256(path) != sha:
         raise StorageError(f"stored file {rel} does not match the upload")
     return sha, rel
+
+
+STORED_PATH = re.compile(r"[0-9a-f]{2}/[0-9a-f]{64}(\.[a-z0-9]{1,8})?")
+
+
+def load(files_dir: Path, rel: str, sha: str) -> bytes:
+    """The stored original, checked against its hash before anything reads it again (D-12)."""
+    if not STORED_PATH.fullmatch(rel) or not rel.startswith(sha[:2] + "/" + sha):
+        raise StorageError(f"not a stored file path: {rel!r}")
+    data = (files_dir / rel).read_bytes()
+    if sha256_hex(data) != sha:
+        raise StorageError(f"stored file {rel} no longer matches its hash")
+    return data

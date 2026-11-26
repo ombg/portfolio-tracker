@@ -18,7 +18,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 from uuid import UUID
 
-from .base import ParseContext, ParseError, Row
+from .base import EXCHANGE_CURRENCY, ParseContext, ParseError, Row, RuleKeys
 from .common import fmt
 
 HEADER = (
@@ -65,6 +65,14 @@ class QuestradeParser:
     def parse(self, data: bytes, filename: str, ctx: ParseContext) -> list[Row]:
         records = _read(data)
         return _Parse(ctx).run(records)
+
+    def rule_keys(self, raw: dict[str, Any]) -> RuleKeys:
+        return RuleKeys(action=action_key(raw), symbol=raw.get("Symbol", "").strip().upper() or None)
+
+
+def action_key(rec: dict[str, Any]) -> str:
+    """Key of an action rule (D-36): the source's Activity Type and Action, as written."""
+    return f"{rec.get('Activity Type', '')}|{rec.get('Action', '')}"
 
 
 # --------------------------------------------------------------------------------------------------------------
@@ -268,10 +276,16 @@ class _Parse:
             "natural_key": natural_key(acct.id, rec),
         }
         t = self._type(action, activity, desc, rec["Symbol"], net)
+        if t is None and (t := self.ctx.action_rules.get(action_key(rec))):
+            w.msgs.append({"level": "info", "code": "action_rule",
+                           "text": f"{activity or '-'} / {action or '-'} mapped to {t} by your rule"})
         if t is None:
             raise _RowError("unmapped_action", f"no mapping for {activity or '-'} / {action or '-'}; map it in the preview")
         n["type"] = t
         n["security"] = self._security(rec["Symbol"], desc, currency, t)
+        if (sec := n["security"]) and (sym := rec["Symbol"].strip().upper()) and self._symbol_rule(sym):
+            w.msgs.append({"level": "info", "code": "symbol_rule",
+                           "text": f"{sym} mapped to {sec['symbol']} ({sec['exchange']}) by your rule"})
         if t in SECURITY_TYPES_REQUIRED and n["security"] is None:
             raise _RowError("missing_symbol", f"{t} row without a symbol")
 
@@ -381,7 +395,10 @@ class _Parse:
             "symbol": None, "exchange": None, "broker_code": None, "security_id": None, "proposed": None,
             "name": name, "security_type": None, "trading_currency": currency, "gic": None,
         }
-        if GIC_CODE.match(sym):
+        if rule := self._symbol_rule(sym):
+            sec.update(symbol=rule[0], exchange=rule[1], trading_currency=EXCHANGE_CURRENCY[rule[1]],
+                       broker_code=sym if INTERNAL_CODE.match(sym) else None)
+        elif GIC_CODE.match(sym):
             gic = _gic_terms(desc)
             sec.update(broker_code=sym, security_type="gic", gic=gic,
                        name=f"{gic['issuer']} GIC {gic['rate']}% {gic['maturity']}" if gic else name)
@@ -393,9 +410,13 @@ class _Parse:
             sec.update(symbol=sym, exchange="US", trading_currency="USD")
         else:
             raise _RowError("unknown_symbol", f"unrecognised symbol {symbol!r}; choose the security in the preview")
-        if sec["broker_code"] and sec["broker_code"] in self.aliases:
+        if sec["broker_code"] and not sec["symbol"] and sec["broker_code"] in self.aliases:
             sec["security_id"] = str(self.aliases[sec["broker_code"]])
         return sec
+
+    def _symbol_rule(self, sym: str) -> tuple[str, str] | None:
+        """The user's rule for this symbol or broker code; GIC codes are never remapped (D-26)."""
+        return None if GIC_CODE.match(sym) else self.ctx.symbol_rules.get(sym)
 
     def _internal_counterparty(self, desc: str, own: UUID) -> UUID | None:
         """D-27: a tracked account's number in the description, digits only, broker suffix of up to 2 digits."""
@@ -413,7 +434,7 @@ class _Parse:
         (step 3), else an error that blocks commit until the user chooses (step 5). GIC codes need no alias."""
         for w in works:
             sec = w.n and w.n["security"]
-            if not sec or not sec["broker_code"] or sec["security_id"] or sec["security_type"] == "gic":
+            if not sec or not sec["broker_code"] or sec["security_id"] or sec["symbol"] or sec["security_type"] == "gic":
                 continue
             match = self._match_name(sec["name"])
             if match:

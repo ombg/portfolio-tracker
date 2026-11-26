@@ -60,6 +60,7 @@ type harness struct {
 	t      *testing.T
 	router http.Handler
 	store  *auth.Store
+	deps   Deps // rebuild the router with more dependencies: h.router = NewRouter(h.deps)
 }
 
 func newHarness(t *testing.T) *harness {
@@ -77,7 +78,8 @@ func newHarness(t *testing.T) *harness {
 		t.Fatal(err)
 	}
 	store := auth.NewStore(pool)
-	return &harness{t: t, store: store, router: NewRouter(Deps{DB: pool, Auth: store, Signer: signer, CookieSecure: true, Accounts: &accounts.Store{Pool: pool}})}
+	deps := Deps{DB: pool, Auth: store, Signer: signer, CookieSecure: true, Accounts: &accounts.Store{Pool: pool}}
+	return &harness{t: t, store: store, deps: deps, router: NewRouter(deps)}
 }
 
 func (h *harness) do(method, path, body string, cookie *http.Cookie) *httptest.ResponseRecorder {

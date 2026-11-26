@@ -3,6 +3,14 @@
 Releases are tagged `ver-x.y.z` on `main` (`CONTRIBUTING.md`). Newest first.
 
 ## Unreleased
+- Import API (FR-3, D-36, proposed): `POST /api/imports` streams the upload to the importer; `GET /api/imports`
+  (history) and `GET /api/imports/{id}` (preview with rows, untracked accounts and `can_commit`);
+  `PATCH /api/imports/{id}/rows/{row}` fixes an action or a symbol (saved as import rules for later files),
+  excludes a row, or links an untracked account number to an existing account; re-parse and discard.
+- importer: `POST /internal/imports/{id}/reparse` and `PATCH /internal/imports/{id}/rows/{row}`; both parsers apply
+  the user's import rules. Migration 000004 adds `imports.import_rules`.
+- Uploads need the header `X-Requested-With: portfolio-tracker` (CSRF, D-36); portfolio-api now gets
+  `SERVICE_TOKEN` in Compose.
 - Wealthsimple activities parser (CSV): every activity in `specs/import-wealthsimple.md`, description dates,
   non-resident tax linked to its dividend (single, 13-17% ratio, or pro rata to the cent), USD sub-accounts, in-kind
   transfers at market value, both name-change shapes, untracked robo accounts proposed (D-14, D-22), natural keys

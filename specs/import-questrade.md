@@ -52,7 +52,7 @@ including ones the user does not track) and any date range.
 | Other | BRW | JOURNAL (pair) | moves a position between the account's CAD and USD sides; quantity nets to zero, no cash, no flow |
 | Other | GRT, EGT | GRANT | government grant (RESP); income-like inflow, external flow for TWR; negative = repayment |
 | Fees and rebates | ADJ without "NRT REBATE" | error row | other rebates exist; the user maps them |
-| any other | any | error row | user maps it in preview; mapping saved as an import rule |
+| any other | any | error row | user maps it in preview; mapping saved as an action rule keyed `Activity Type|Action` (D-36) |
 
 Quantity and price are kept for share events only: BUY/SELL (absolute quantity, commission as a positive number),
 SPLIT (signed delta), SYMBOL_CHANGE and JOURNAL legs (signed), in-kind transfers. Cash rows have neither.
@@ -70,7 +70,8 @@ rest are added (D-28). Rows of untracked accounts are skipped and counted (D-22)
 2. Look up `security_aliases` (broker questrade), then `security_symbols` valid on trade_date.
 3. Internal code (letter + 6 digits): a saved alias resolves it. Otherwise match the Description's security name
    against securities traded under a listed symbol in the same file (exact, or one name a prefix of the other, a
-   single candidate); propose it as a warning (`proposed_security`); the user confirms -> alias saved. Matching
+   single candidate); propose it as a warning (`proposed_security`); the user confirms or chooses -> symbol rule
+   saved (D-36), and the alias is written when the batch is committed. Matching
    against securities already in the ledger follows with the commit (#18). Symbol-change legs (NAC), split legs
    (DIS), journals (BRW) and liquidations (LIQ) usually carry such codes.
 4. GIC codes (digit, five letters or digits, digit, e.g. `1SYNB07`): one security per GIC, type `gic` (D-26);

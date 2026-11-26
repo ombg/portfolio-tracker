@@ -27,6 +27,9 @@ services:
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       # Set as the pt_importer role's password after migrations (D-35).
       IMPORTER_DB_PASSWORD: ${IMPORTER_DB_PASSWORD:?set IMPORTER_DB_PASSWORD in .env}
+      # Uploads and preview corrections go to the importer with this token (D-35, D-36).
+      SERVICE_TOKEN: ${SERVICE_TOKEN:?set SERVICE_TOKEN in .env}
+      IMPORTER_URL: http://importer:8000
     depends_on:
       db:
         condition: service_healthy

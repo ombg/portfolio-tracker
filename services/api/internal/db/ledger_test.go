@@ -154,6 +154,9 @@ func TestLedgerWrites(t *testing.T) {
 			[]any{security}, "", 1},
 		{"rename a symbol", "UPDATE core.security_symbols SET symbol = 'QZGX' WHERE security_id = $1",
 			[]any{security}, "42501", 0},
+		{"save an import rule (importer's table, D-36)", `INSERT INTO imports.import_rules (user_id, broker_id, kind, source_key, target)
+			 SELECT $1, id, 'action', 'Other|ZZQ', '{"type": "FEE"}' FROM core.brokers WHERE code = 'questrade'`, []any{userA}, "42501", 0},
+		{"read own import rules", "SELECT 1 FROM imports.import_rules", nil, "", 0},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -214,6 +217,12 @@ func TestImporterRole(t *testing.T) {
 			`INSERT INTO core.security_aliases (user_id, broker_id, alias, security_id)
 			 SELECT $1, id, 'H000001', $2 FROM core.brokers WHERE code = 'questrade'`, []any{userA, security},
 			"42501", 0},
+		{"save own import rule (D-36)", `INSERT INTO imports.import_rules (user_id, broker_id, kind, source_key, target)
+			 SELECT $1, id, 'action', 'Other|ZZQ', '{"type": "FEE"}' FROM core.brokers WHERE code = 'questrade'`, []any{userA}, "", 1},
+		{"save an import rule for B", `INSERT INTO imports.import_rules (user_id, broker_id, kind, source_key, target)
+			 SELECT $1, id, 'action', 'Other|ZZQ', '{"type": "FEE"}' FROM core.brokers WHERE code = 'questrade'`, []any{userB}, "42501", 0},
+		{"change own import rule", "UPDATE imports.import_rules SET target = '{\"type\": \"FEE\"}'", nil, "", 0},
+		{"delete own import rule", "DELETE FROM imports.import_rules", nil, "42501", 0},
 		{"read users", "SELECT 1 FROM core.users", nil, "42501", 0},
 		{"read sessions", "SELECT 1 FROM core.sessions", nil, "42501", 0},
 	}
