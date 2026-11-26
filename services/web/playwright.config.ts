@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// Run through `make e2e`, which starts a throwaway stack and creates the synthetic users.
+// Run through `make e2e`, which starts a throwaway stack and creates the synthetic users (one pair per browser).
+// WebKit stands in for Safari, which treats cookies on plain-HTTP localhost differently from Chromium (D-34).
 export default defineConfig({
   testDir: "e2e",
   fullyParallel: false,
@@ -12,5 +13,9 @@ export default defineConfig({
     baseURL: process.env.E2E_BASE_URL ?? "http://localhost:8090",
     trace: "retain-on-failure",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    { name: "firefox", use: { ...devices["Desktop Firefox"] } },
+    { name: "webkit", use: { ...devices["Desktop Safari"] } },
+  ],
 });

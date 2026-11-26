@@ -1,6 +1,6 @@
 # Decisions and PRD review
 
-Status: proposed 2026-11-19; Oliver's answers folded in on 2026-11-20, 2026-11-21, 2026-11-23 and 2026-11-24.
+Status: proposed 2026-11-19; Oliver's answers folded in on 2026-11-20, 2026-11-21, 2026-11-23, 2026-11-24 and 2026-11-25.
 Source of requirements: `chatgpt/docs/portfolio-tracker-requirements.md` (the PRD).
 This file records (a) where the PRD needs clarification or a change and (b) every design decision taken to satisfy it.
 Each decision has an ID; specs reference them as `D-n`. Superseded decisions stay here, marked as such.
@@ -253,13 +253,24 @@ Answers the PRD's open "password policy" item for v1. Confirmed by Oliver 2026-1
 - Sessions: absolute lifetime 30 days, ended after 7 days without a request; a password reset (`ptctl user
   set-password`) ends all sessions of that user; disabling a user ends them too. Expired rows are removed when the
   same user logs in again.
-- Cookie `pt_session` = session id + HMAC-SHA256 with `SESSION_SECRET` (at least 32 bytes); HttpOnly, Secure,
-  SameSite=Lax, Path=/.
+- Cookie `pt_session` = session id + HMAC-SHA256 with `SESSION_SECRET` (at least 32 bytes); HttpOnly, Secure (unless
+  the transport is plain HTTP on loopback, D-34), SameSite=Lax, Path=/.
 - Login failures for an unknown email, a disabled user and a wrong password give the same 401 after the same
   hashing work. Emails and passwords are never logged.
 - CSRF: every POST/PUT/PATCH/DELETE must be `application/json` (415 otherwise); browsers cannot send that cross-site
   without a CORS preflight, which the API never grants. Together with SameSite=Lax this replaces CSRF tokens.
 - Not in v1: login rate limiting and lockout (the app runs on a private network; revisit before exposing it).
+
+### D-34 Secure cookie flag follows the transport
+Amends D-33's cookie flags. Fix approved by Oliver 2026-11-25. Found while testing M1: Safari drops `Secure` cookies on
+`http://localhost` and `http://127.0.0.1`, so sign-in silently failed there; Chromium and Firefox keep them.
+- Compose serves the app over plain HTTP on 127.0.0.1 and sets `COOKIE_SECURE=false` by default. On loopback the flag
+  protects nothing: the cookie never leaves the machine. HttpOnly, SameSite=Lax and the HMAC signature are unchanged.
+- `COOKIE_SECURE=true` is required once the app is served over HTTPS, which in turn is required before it is
+  reachable from another machine. The API binary on its own still defaults to `true`.
+- The sign-in page checks that the session works right after login and says so when the browser did not keep the
+  cookie, instead of showing the sign-in page again without a message (NFR-4).
+- `make e2e` runs in Chromium, Firefox and WebKit (Safari's engine).
 
 ## Open questions
 

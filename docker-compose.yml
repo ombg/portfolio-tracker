@@ -22,8 +22,9 @@ services:
     environment:
       DATABASE_URL: postgres://portfolio:${POSTGRES_PASSWORD}@db:5432/portfolio?sslmode=disable
       SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in .env}
-      # Cookies are Secure; browsers accept them on http://localhost. Set false only for plain HTTP elsewhere.
-      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      # web serves plain HTTP on 127.0.0.1, where Safari drops Secure cookies, so the default is false (D-34).
+      # Set COOKIE_SECURE=true as soon as the app is served over HTTPS.
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
     depends_on:
       db:
         condition: service_healthy

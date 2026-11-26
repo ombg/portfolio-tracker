@@ -45,10 +45,11 @@ Each fixture folder holds `input/` files and `expected/*.json`. A failing test p
 
 ## End-to-end runs
 `make e2e` runs `scripts/e2e.sh`: it starts a separate Compose project (`pt-e2e`, port 8090, own volumes) with
-random secrets, creates two synthetic users with `ptctl`, runs Playwright (Chromium) from `services/web/e2e`, and
-removes the stack and its volumes afterwards, also on failure. Row checks compare every table cell exactly so one
+random secrets, creates two synthetic users per browser with `ptctl`, runs Playwright in Chromium, Firefox and
+WebKit (Safari's engine, D-34) from `services/web/e2e`, and removes the stack and its volumes afterwards, also on
+failure. Row checks compare every table cell exactly so one
 column cannot hide a wrong value in another. Covered so far: AC-1 (`ac1-accounts.spec.ts`), plus FR-1 isolation and
-FR-2 edit, close and archive.
+FR-2 edit, close and archive, and the message shown when the browser drops the session cookie.
 
 ## Private smoke test
 `make smoke-private` runs the importer and the calculation engine on everything in `data/` inside the local stack:
