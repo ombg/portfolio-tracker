@@ -3,13 +3,15 @@
 Releases are tagged `ver-x.y.z` on `main` (`CONTRIBUTING.md`). Newest first.
 
 ## Unreleased
-- Sign-in works in Safari: Compose sends the session cookie without the Secure flag while the app is served over
-  plain HTTP on 127.0.0.1 (`COOKIE_SECURE`, default `false`; set `true` behind HTTPS) (D-34).
-- The sign-in page says when the browser did not keep the session cookie instead of silently showing sign-in again.
-- `make e2e` runs in Chromium, Firefox and WebKit.
+
+## ver-0.1.0 (2026-11-26)
+M1 Foundation: AC-1 passes in the browser.
 - Web app (`services/web`): sign in, accounts table, create and edit accounts (FR-2); served by Caddy, which proxies
   `/api` (the API is no longer published to the host).
-- Playwright acceptance tests: `make e2e` covers AC-1 against a throwaway stack.
+- Sign-in works in Safari: Compose sends the session cookie without the Secure flag while the app is served over
+  plain HTTP on 127.0.0.1 (`COOKIE_SECURE`, default `false`; set `true` behind HTTPS) (D-34). The sign-in page says
+  when the browser did not keep the session cookie instead of silently showing sign-in again.
+- Playwright acceptance tests: `make e2e` covers AC-1 against a throwaway stack in Chromium, Firefox and WebKit.
 - `make test` also type-checks the web app.
 - portfolio-api queries are generated with sqlc from `services/api/internal/db/queries` (`make generate`);
   `make test` fails when the generated code is out of date.
