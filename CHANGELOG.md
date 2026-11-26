@@ -3,6 +3,10 @@
 Releases are tagged `ver-x.y.z` on `main` (`CONTRIBUTING.md`). Newest first.
 
 ## Unreleased
+- Sign-in works in Safari: Compose sends the session cookie without the Secure flag while the app is served over
+  plain HTTP on 127.0.0.1 (`COOKIE_SECURE`, default `false`; set `true` behind HTTPS) (D-34).
+- The sign-in page says when the browser did not keep the session cookie instead of silently showing sign-in again.
+- `make e2e` runs in Chromium, Firefox and WebKit.
 - Web app (`services/web`): sign in, accounts table, create and edit accounts (FR-2); served by Caddy, which proxies
   `/api` (the API is no longer published to the host).
 - Playwright acceptance tests: `make e2e` covers AC-1 against a throwaway stack.

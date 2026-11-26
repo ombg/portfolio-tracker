@@ -2,10 +2,10 @@ import { expect, test, type Page } from "@playwright/test";
 
 // PRD AC-1: an authenticated user can create separate Wealthsimple and Questrade accounts, including registered and
 // non-registered accounts. Also FR-2 (edit, close, archive) and FR-1 (another user sees none of it).
-// Users are synthetic and created by scripts/e2e.sh with ptctl (D-20).
+// Users are synthetic and created by scripts/e2e.sh with ptctl, one pair per browser project (D-20).
 
-const userA = { email: "e2e-a@example.test", password: process.env.E2E_PASSWORD_A ?? "" };
-const userB = { email: "e2e-b@example.test", password: process.env.E2E_PASSWORD_B ?? "" };
+let userA = { email: "", password: "" };
+let userB = { email: "", password: "" };
 
 test.describe.configure({ mode: "serial" });
 
@@ -55,7 +55,10 @@ async function expectRow(
   ]);
 }
 
-test.beforeAll(() => {
+test.beforeAll(({}, testInfo) => {
+  const browser = testInfo.project.name;
+  userA = { email: `e2e-a-${browser}@example.test`, password: process.env.E2E_PASSWORD_A ?? "" };
+  userB = { email: `e2e-b-${browser}@example.test`, password: process.env.E2E_PASSWORD_B ?? "" };
   expect(userA.password, "run through make e2e").not.toBe("");
 });
 
@@ -153,6 +156,15 @@ test("FR-1: another user sees none of these accounts", async ({ page }) => {
   await expect(page.getByText("No accounts yet")).toBeVisible();
   await page.getByLabel("Show archived").check();
   await expect(page.getByText("No accounts yet")).toBeVisible();
+});
+
+test("a session cookie the browser drops is reported, not shown as a silent return to sign in", async ({ page }) => {
+  // Simulate a browser that refuses the cookie (Safari with a Secure cookie over plain HTTP, D-34): the login
+  // succeeds but no cookie arrives. Answered here, not by the API, so no cookie can reach the browser.
+  await page.route("**/api/auth/login", (route) => route.fulfill({ status: 204 }));
+  await signIn(page, userA.email, userA.password);
+  await expect(page.getByRole("alert")).toContainText("did not keep the session cookie");
+  await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
 });
 
 test("sign out returns to the login page and the session is gone", async ({ page }) => {

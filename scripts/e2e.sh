@@ -39,10 +39,13 @@ for _ in $(seq 60); do
 done
 curl -fsS "http://localhost:$PORT/api/health" >/dev/null
 
+# One pair of users per Playwright project (browser), so the browsers' runs do not see each other's accounts.
 PASSWORD_A="e2e $(openssl rand -hex 12)"
 PASSWORD_B="e2e $(openssl rand -hex 12)"
-echo "$PASSWORD_A" | dc exec -T api ptctl user create --email e2e-a@example.test --name "E2E User A" >/dev/null
-echo "$PASSWORD_B" | dc exec -T api ptctl user create --email e2e-b@example.test --name "E2E User B" >/dev/null
+for browser in chromium firefox webkit; do
+  echo "$PASSWORD_A" | dc exec -T api ptctl user create --email "e2e-a-$browser@example.test" --name "E2E User A" >/dev/null
+  echo "$PASSWORD_B" | dc exec -T api ptctl user create --email "e2e-b-$browser@example.test" --name "E2E User B" >/dev/null
+done
 
 cd "$ROOT/services/web"
 E2E_BASE_URL="http://localhost:$PORT" E2E_PASSWORD_A="$PASSWORD_A" E2E_PASSWORD_B="$PASSWORD_B" \

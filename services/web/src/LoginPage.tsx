@@ -2,13 +2,32 @@ import { useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ApiError, api } from "./api";
 
+// Login succeeded but the next request had no session: the browser dropped the cookie (D-34).
+class SessionNotKept extends Error {
+  constructor() {
+    super(
+      "Your password was accepted, but the browser did not keep the session cookie, so you are not signed in. " +
+        "If the app is served over plain HTTP, the server needs COOKIE_SECURE=false.",
+    );
+  }
+}
+
 export function LoginPage() {
   const qc = useQueryClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const login = useMutation({
-    mutationFn: () => api.login(email, password),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["me"] }),
+    mutationFn: async () => {
+      await api.login(email, password);
+      // Confirm the browser kept the session cookie; otherwise the app would silently show this page again.
+      try {
+        return await api.me();
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 401) throw new SessionNotKept();
+        throw e;
+      }
+    },
+    onSuccess: (profile) => qc.setQueryData(["me"], profile),
   });
 
   function submit(e: FormEvent) {

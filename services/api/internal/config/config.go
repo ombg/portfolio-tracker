@@ -11,7 +11,7 @@ type Config struct {
 	MigrationsDir string // path to db/migrations
 	ListenAddr    string
 	SessionSecret string // signs session cookies; at least 32 bytes
-	CookieSecure  bool   // COOKIE_SECURE=false only for plain-HTTP development outside localhost
+	CookieSecure  bool   // true unless COOKIE_SECURE=false; Compose sets false for plain HTTP on loopback (D-34)
 }
 
 // FromEnv reads the configuration. DATABASE_URL is always required; SESSION_SECRET is

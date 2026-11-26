@@ -18,7 +18,7 @@ web-check:
 
 # Playwright acceptance tests against a throwaway stack on localhost:8090 (scripts/e2e.sh).
 e2e:
-	cd services/web && npm ci --ignore-scripts --no-audit --no-fund && npx playwright install chromium
+	cd services/web && npm ci --ignore-scripts --no-audit --no-fund && npx playwright install chromium firefox webkit
 	./scripts/e2e.sh
 
 # Regenerate typed Go from services/api/internal/db/queries/*.sql and db/migrations.
