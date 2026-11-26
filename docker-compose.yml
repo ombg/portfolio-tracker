@@ -1,5 +1,5 @@
-# Local stack (specs/architecture.md). M1: database and portfolio-api.
-# web (Caddy), importer, market-data and backup join in later milestones.
+# Local stack (specs/architecture.md). M1: database, portfolio-api and web (Caddy + SPA).
+# importer, market-data and backup join in later milestones.
 services:
   db:
     image: postgres:16
@@ -22,14 +22,21 @@ services:
     environment:
       DATABASE_URL: postgres://portfolio:${POSTGRES_PASSWORD}@db:5432/portfolio?sslmode=disable
       SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in .env}
-      # Cookies are Secure; browsers accept them on http://localhost. Set false only for plain HTTP elsewhere.
-      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      # web serves plain HTTP on 127.0.0.1, where Safari drops Secure cookies, so the default is false (D-34).
+      # Set COOKIE_SECURE=true as soon as the app is served over HTTPS.
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
     depends_on:
       db:
         condition: service_healthy
-    # Published on localhost only until Caddy fronts it.
+    # Not published: the browser reaches the API only through web (D-16).
+
+  web:
+    build:
+      context: services/web
+    depends_on:
+      - api
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:${WEB_PORT:-8080}:80"
 
 volumes:
   pgdata:

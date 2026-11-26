@@ -1,0 +1,23 @@
+# web: serves the built SPA and proxies /api to portfolio-api (specs/architecture.md, D-16).
+# Plain HTTP on the published localhost port for now; browsers treat http://localhost as a secure
+# context, so the Secure session cookie works. Add TLS before exposing the app beyond this machine.
+:80 {
+	encode gzip
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy same-origin
+		Content-Security-Policy "default-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+	}
+
+	handle /api/* {
+		reverse_proxy api:8080
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

@@ -31,6 +31,10 @@ browser --HTTPS--> web (Caddy + React SPA)
 - **Table ownership**: a service writes only its own schema. Others read via views or ask the owner over HTTP.
   The ledger (`core.transactions`) is written only by portfolio-api.
 - **Migrations** for all schemas live in `db/migrations` and are applied by portfolio-api at start-up.
+- **Queries** in portfolio-api are written as SQL in `services/api/internal/db/queries/*.sql` and compiled by sqlc
+  (pinned Docker image, `make generate`) into `internal/db/dbq`, which is checked in. `make test` runs `sqlc diff`
+  first and fails when the generated code is stale. Only transaction setup (`SET LOCAL ROLE`, `app.user_id`) and
+  tests use hand-written SQL.
 - **User isolation**: portfolio-api connects as the database owner only to run migrations; every request
   transaction starts with `SET LOCAL ROLE pt_app` and `SET LOCAL app.user_id = $1`, and forced RLS policies on every
   user-owned table filter by it (D-1, `data-model.md`). Internal calls carry the user id explicitly.
@@ -40,7 +44,7 @@ browser --HTTPS--> web (Caddy + React SPA)
 
 ## Key flows
 
-### Authentication (FR-1, D-1, D-32, D-33)
+### Authentication (FR-1, D-1, D-32, D-33, D-34)
 1. An admin creates users with `docker compose exec api ptctl user create --email E --name N [--currency CAD]`
    (password prompted twice); this also creates the user's portfolio (D-2). `ptctl user set-password --email E`
    resets a password and ends that user's sessions. ptctl connects as the database owner.
@@ -54,6 +58,16 @@ browser --HTTPS--> web (Caddy + React SPA)
 5. `POST /api/auth/logout` deletes the session (`core.session_revoke`) and clears the cookie.
 
 Errors from every endpoint have the shape `{"error": "<stable code>", "message": "<text>"}`.
+
+### Web app (M1)
+`services/web`: React + TypeScript (Vite, TanStack Query), built into a Caddy image. Caddy serves the SPA and proxies
+`/api/*` to portfolio-api, which is no longer published to the host. Compose publishes Caddy on
+`127.0.0.1:${WEB_PORT:-8080}` over plain HTTP, so the session cookie is sent without the Secure flag by default
+(Safari drops Secure cookies on plain-HTTP localhost; D-34). TLS, with `COOKIE_SECURE=true`, is required before the
+app is reachable from another machine. After login the sign-in page checks the session and reports a dropped cookie. Caddy sets a strict
+Content-Security-Policy (`default-src 'self'`) and `X-Frame-Options: DENY`.
+M1 screens: sign in; accounts table (open and closed, archived behind "Show archived", robo accounts labelled
+"Managed, account-level only"); one form to create and edit accounts that shows the server's field errors.
 
 ### Accounts (FR-2, D-2, D-14)
 All routes require a session and run in `WithUser`; another user's account answers 404 exactly like a missing one.
@@ -117,8 +131,8 @@ backups/                  nightly backups (git-ignored, D-18)
 
 portfolio-api reads `DATABASE_URL` (owner connection, built by Compose from `POSTGRES_PASSWORD`), `MIGRATIONS_DIR`
 (default `/migrations`, baked into the image from `db/migrations`), `LISTEN_ADDR` (default `:8080`),
-`SESSION_SECRET` (required to serve, at least 32 bytes) and `COOKIE_SECURE` (default `true`; browsers accept Secure
-cookies on `http://localhost`, so `false` is only for plain HTTP on another host). It applies
+`SESSION_SECRET` (required to serve, at least 32 bytes) and `COOKIE_SECURE` (the binary defaults to `true`; Compose
+sets `false` by default because it serves plain HTTP on 127.0.0.1, and it must be `true` behind HTTPS; D-34). It applies
 pending migrations on every start; `api migrate` (`make migrate`) applies them and exits. `GET /api/health` returns
 503 when the database is unreachable. `.dockerignore` keeps `data/`, `backups/`, `context/` and `.env` out of every
 build context (D-20).

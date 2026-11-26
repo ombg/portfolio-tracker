@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/ombg/portfolio-tracker/services/api/internal/db"
+	"github.com/ombg/portfolio-tracker/services/api/internal/db/dbq"
 )
 
 var (
@@ -145,49 +146,43 @@ type PatchInput struct {
 
 type Store struct{ Pool *pgxpool.Pool }
 
-const selectAccount = `
-	SELECT a.id, a.name, b.code, b.name, a.external_number, a.type, a.is_registered, a.base_currency, a.status,
-	       a.management, a.analysis_level, a.opened_on, a.closed_on, a.notes, a.migration_meta, a.created_at, a.updated_at
-	FROM core.accounts a JOIN core.brokers b ON b.id = a.broker_id`
+// toAccount converts a generated row (account embedded with its broker) to the API shape.
+func toAccount(r dbq.CoreAccount, brokerCode, brokerName string) Account {
+	a := Account{
+		ID: r.ID, Name: r.Name, Broker: Broker{Code: brokerCode, Name: brokerName}, ExternalNumber: r.ExternalNumber,
+		Type: r.Type, IsRegistered: r.IsRegistered, BaseCurrency: strings.TrimSpace(r.BaseCurrency), Status: r.Status,
+		Management: r.Management, AnalysisLevel: r.AnalysisLevel, Notes: r.Notes, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
+	}
+	if r.OpenedOn != nil {
+		a.OpenedOn = &Date{*r.OpenedOn}
+	}
+	if r.ClosedOn != nil {
+		a.ClosedOn = &Date{*r.ClosedOn}
+	}
+	if r.MigrationMeta != nil {
+		a.MigrationMeta = r.MigrationMeta
+	}
+	return a
+}
 
-func scanAccount(row pgx.Row) (Account, error) {
-	var a Account
-	var opened, closed *time.Time
-	var meta []byte
-	err := row.Scan(&a.ID, &a.Name, &a.Broker.Code, &a.Broker.Name, &a.ExternalNumber, &a.Type, &a.IsRegistered,
-		&a.BaseCurrency, &a.Status, &a.Management, &a.AnalysisLevel, &opened, &closed, &a.Notes, &meta, &a.CreatedAt, &a.UpdatedAt)
+func getAccount(ctx context.Context, q *dbq.Queries, id uuid.UUID) (Account, error) {
+	r, err := q.GetAccount(ctx, id)
 	if err != nil {
 		return Account{}, err
 	}
-	a.BaseCurrency = strings.TrimSpace(a.BaseCurrency)
-	if opened != nil {
-		a.OpenedOn = &Date{*opened}
-	}
-	if closed != nil {
-		a.ClosedOn = &Date{*closed}
-	}
-	if meta != nil {
-		a.MigrationMeta = meta
-	}
-	return a, nil
+	return toAccount(r.CoreAccount, r.BrokerCode, r.BrokerName), nil
 }
 
 // List returns the user's accounts, open first, then closed, then archived (only when asked).
 func (s *Store) List(ctx context.Context, userID uuid.UUID, includeArchived bool) ([]Account, error) {
-	var out []Account
+	out := []Account{}
 	err := db.WithUser(ctx, s.Pool, userID, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx, selectAccount+`
-			WHERE $1 OR a.status <> 'archived'
-			ORDER BY array_position(ARRAY['open','closed','archived'], a.status), lower(a.name), a.id`, includeArchived)
-		if err != nil {
-			return err
+		rows, err := dbq.New(tx).ListAccounts(ctx, includeArchived)
+		for _, r := range rows {
+			out = append(out, toAccount(r.CoreAccount, r.BrokerCode, r.BrokerName))
 		}
-		out, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (Account, error) { return scanAccount(r) })
 		return err
 	})
-	if out == nil {
-		out = []Account{}
-	}
 	return out, err
 }
 
@@ -195,7 +190,7 @@ func (s *Store) Get(ctx context.Context, userID, id uuid.UUID) (Account, error) 
 	var a Account
 	err := db.WithUser(ctx, s.Pool, userID, func(tx pgx.Tx) error {
 		var err error
-		a, err = scanAccount(tx.QueryRow(ctx, selectAccount+" WHERE a.id = $1", id))
+		a, err = getAccount(ctx, dbq.New(tx), id)
 		return err
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -310,31 +305,32 @@ func (s *Store) Create(ctx context.Context, userID uuid.UUID, in CreateInput) (A
 
 	var a Account
 	err := db.WithUser(ctx, s.Pool, userID, func(tx pgx.Tx) error {
-		var brokerID, portfolioID uuid.UUID
-		if err := tx.QueryRow(ctx, "SELECT id FROM core.brokers WHERE code = $1", strings.ToLower(strings.TrimSpace(in.Broker))).Scan(&brokerID); err != nil {
+		q := dbq.New(tx)
+		brokerID, err := q.BrokerIDByCode(ctx, strings.ToLower(strings.TrimSpace(in.Broker)))
+		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				return invalid("broker", "unknown broker %q", in.Broker)
 			}
 			return err
 		}
 		// One portfolio per user in v1 (D-2); RLS returns only this user's.
-		if err := tx.QueryRow(ctx, "SELECT id FROM core.portfolios ORDER BY name LIMIT 1").Scan(&portfolioID); err != nil {
+		portfolioID, err := q.UserPortfolioID(ctx)
+		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				return errors.New("user has no portfolio (create users with ptctl)")
 			}
 			return err
 		}
-		var id uuid.UUID
-		err := tx.QueryRow(ctx, `INSERT INTO core.accounts
-			(user_id, portfolio_id, broker_id, external_number, name, type, is_registered, base_currency, status,
-			 management, analysis_level, opened_on, closed_on, notes, migration_meta)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`,
-			userID, portfolioID, brokerID, f.externalNumber, f.name, f.accountType, f.isRegistered, f.currency, f.status,
-			f.management, f.level, f.openedOn, f.closedOn, f.notes, f.meta).Scan(&id)
+		id, err := q.InsertAccount(ctx, dbq.InsertAccountParams{
+			UserID: userID, PortfolioID: portfolioID, BrokerID: brokerID, ExternalNumber: f.externalNumber,
+			Name: f.name, Type: f.accountType, IsRegistered: f.isRegistered, BaseCurrency: f.currency, Status: f.status,
+			Management: f.management, AnalysisLevel: f.level, OpenedOn: f.openedOn, ClosedOn: f.closedOn,
+			Notes: f.notes, MigrationMeta: f.meta,
+		})
 		if err != nil {
 			return err
 		}
-		a, err = scanAccount(tx.QueryRow(ctx, selectAccount+" WHERE a.id = $1", id))
+		a, err = getAccount(ctx, q, id)
 		return err
 	})
 	return a, mapDBError(err)
@@ -346,13 +342,15 @@ func (s *Store) Update(ctx context.Context, userID, id uuid.UUID, p PatchInput) 
 	}
 	var a Account
 	err := db.WithUser(ctx, s.Pool, userID, func(tx pgx.Tx) error {
-		cur, err := scanAccount(tx.QueryRow(ctx, selectAccount+" WHERE a.id = $1 FOR UPDATE OF a", id))
+		q := dbq.New(tx)
+		row, err := q.GetAccountForUpdate(ctx, id)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
 		}
 		if err != nil {
 			return err
 		}
+		cur := toAccount(row.CoreAccount, row.BrokerCode, row.BrokerName)
 		f := fields{
 			name: cur.Name, accountType: cur.Type, currency: cur.BaseCurrency, status: cur.Status,
 			management: cur.Management, level: cur.AnalysisLevel, isRegistered: cur.IsRegistered,
@@ -378,16 +376,14 @@ func (s *Store) Update(ctx context.Context, userID, id uuid.UUID, p PatchInput) 
 		if err := f.normalizeAndValidate(); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `UPDATE core.accounts SET
-			name = $2, type = $3, is_registered = $4, base_currency = $5, external_number = $6, status = $7,
-			management = $8, analysis_level = $9, opened_on = $10, closed_on = $11, notes = $12, migration_meta = $13,
-			updated_at = now()
-			WHERE id = $1`,
-			id, f.name, f.accountType, f.isRegistered, f.currency, f.externalNumber, f.status,
-			f.management, f.level, f.openedOn, f.closedOn, f.notes, f.meta); err != nil {
+		if err := q.UpdateAccount(ctx, dbq.UpdateAccountParams{
+			ID: id, Name: f.name, Type: f.accountType, IsRegistered: f.isRegistered, BaseCurrency: f.currency,
+			ExternalNumber: f.externalNumber, Status: f.status, Management: f.management, AnalysisLevel: f.level,
+			OpenedOn: f.openedOn, ClosedOn: f.closedOn, Notes: f.notes, MigrationMeta: f.meta,
+		}); err != nil {
 			return err
 		}
-		a, err = scanAccount(tx.QueryRow(ctx, selectAccount+" WHERE a.id = $1", id))
+		a, err = getAccount(ctx, q, id)
 		return err
 	})
 	return a, mapDBError(err)
@@ -483,11 +479,10 @@ func mapDBError(err error) error {
 func (s *Store) Brokers(ctx context.Context, userID uuid.UUID) ([]Broker, error) {
 	var out []Broker
 	err := db.WithUser(ctx, s.Pool, userID, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx, "SELECT code, name FROM core.brokers ORDER BY name")
-		if err != nil {
-			return err
+		rows, err := dbq.New(tx).ListBrokers(ctx)
+		for _, r := range rows {
+			out = append(out, Broker{Code: r.Code, Name: r.Name})
 		}
-		out, err = pgx.CollectRows(rows, pgx.RowToStructByPos[Broker])
 		return err
 	})
 	return out, err
@@ -502,11 +497,10 @@ type Currency struct {
 func (s *Store) Currencies(ctx context.Context, userID uuid.UUID) ([]Currency, error) {
 	var out []Currency
 	err := db.WithUser(ctx, s.Pool, userID, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx, "SELECT code, name, minor_units FROM core.currencies ORDER BY code")
-		if err != nil {
-			return err
+		rows, err := dbq.New(tx).ListCurrencies(ctx)
+		for _, r := range rows {
+			out = append(out, Currency{Code: r.Code, Name: r.Name, MinorUnits: r.MinorUnits})
 		}
-		out, err = pgx.CollectRows(rows, pgx.RowToStructByPos[Currency])
 		return err
 	})
 	return out, err
