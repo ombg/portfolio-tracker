@@ -36,6 +36,14 @@ func run() error {
 	if err := db.Migrate(cfg.DatabaseURL, cfg.MigrationsDir); err != nil {
 		return err
 	}
+	pool, err := db.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+	if err := db.SetImporterLogin(ctx, pool, cfg.ImporterDBPassword); err != nil {
+		return err
+	}
 	// `api migrate` applies migrations and exits (make migrate); otherwise serve.
 	if len(os.Args) > 1 && os.Args[1] == "migrate" {
 		slog.Info("migrations applied")
@@ -45,11 +53,6 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	pool, err := db.Open(ctx, cfg.DatabaseURL)
-	if err != nil {
-		return err
-	}
-	defer pool.Close()
 
 	srv := &http.Server{
 		Addr: cfg.ListenAddr,

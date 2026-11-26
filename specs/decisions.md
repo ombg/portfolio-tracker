@@ -1,6 +1,6 @@
 # Decisions and PRD review
 
-Status: proposed 2026-11-19; Oliver's answers folded in on 2026-11-20, 2026-11-21, 2026-11-23, 2026-11-24 and 2026-11-25; D-35 proposed 2026-11-26.
+Status: proposed 2026-11-19; Oliver's answers folded in on 2026-11-20, 2026-11-21, 2026-11-23, 2026-11-24 and 2026-11-25; D-35 confirmed 2026-11-26.
 Source of requirements: `chatgpt/docs/portfolio-tracker-requirements.md` (the PRD).
 This file records (a) where the PRD needs clarification or a change and (b) every design decision taken to satisfy it.
 Each decision has an ID; specs reference them as `D-n`. Superseded decisions stay here, marked as such.
@@ -273,7 +273,7 @@ Amends D-33's cookie flags. Fix approved by Oliver 2026-11-25. Found while testi
 - `make e2e` runs in Chromium, Firefox and WebKit (Safari's engine).
 
 ### D-35 Database roles and write paths for the ledger and imports
-Proposed 2026-11-26 with M2 (issue #13); awaiting Oliver's confirmation (Q-18).
+Confirmed by Oliver 2026-11-26 (M2, issue #13).
 - **Importer role.** The importer parses untrusted files, so it never gets the owner's credentials. It connects as
   its own login role `pt_importer` (no BYPASSRLS) and sets `app.user_id` per transaction from the user id that
   portfolio-api passes with each internal call, so the same RLS policies apply. The migration creates the role
@@ -294,6 +294,5 @@ Proposed 2026-11-26 with M2 (issue #13); awaiting Oliver's confirmation (Q-18).
 
 ## Open questions
 
-- Q-18: confirm D-35 (importer role, write paths, shared security master, links as corrections).
-
-Closed: Q-15 (GitHub push access) and Q-17 (D-33 confirmation), 2026-11-24.
+None open. Closed: Q-15 (GitHub push access) and Q-17 (D-33 confirmation), 2026-11-24; Q-18 (D-35
+confirmation), 2026-11-26.

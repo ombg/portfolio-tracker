@@ -12,6 +12,8 @@ type Config struct {
 	ListenAddr    string
 	SessionSecret string // signs session cookies; at least 32 bytes
 	CookieSecure  bool   // true unless COOKIE_SECURE=false; Compose sets false for plain HTTP on loopback (D-34)
+	// ImporterDBPassword is the pt_importer role's password, set after migrations; empty disables its login (D-35).
+	ImporterDBPassword string
 }
 
 // FromEnv reads the configuration. DATABASE_URL is always required; SESSION_SECRET is
@@ -23,6 +25,8 @@ func FromEnv() (Config, error) {
 		ListenAddr:    getenv("LISTEN_ADDR", ":8080"),
 		SessionSecret: os.Getenv("SESSION_SECRET"),
 		CookieSecure:  os.Getenv("COOKIE_SECURE") != "false",
+
+		ImporterDBPassword: os.Getenv("IMPORTER_DB_PASSWORD"),
 	}
 	if c.DatabaseURL == "" {
 		return Config{}, errors.New("DATABASE_URL is required")
