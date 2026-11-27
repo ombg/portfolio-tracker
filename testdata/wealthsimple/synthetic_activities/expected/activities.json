@@ -1,0 +1,657 @@
+{
+ "_comment": "Hand-written expected parser output for input/activities.csv with input/context.json (the rows were typed from the spec rules, not produced by the parser). Fields not listed take the defaults in services/importer/tests/golden.py.",
+ "rows": [
+  {
+   "row_no": 2,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "DEPOSIT",
+    "trade_date": "2025-01-02",
+    "net_amount": "1000",
+    "currency": "CAD"
+   }
+  },
+  {
+   "row_no": 3,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "BUY",
+    "trade_date": "2025-01-06",
+    "settle_date": "2025-01-07",
+    "security": {
+     "symbol": "XQZG",
+     "exchange": "TSX",
+     "name": "Synthetic Growth ETF",
+     "trading_currency": "CAD"
+    },
+    "quantity": "10",
+    "price": "25.1",
+    "net_amount": "-251",
+    "currency": "CAD"
+   }
+  },
+  {
+   "row_no": 4,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "BUY",
+    "trade_date": "2025-01-07",
+    "settle_date": "2025-01-08",
+    "security": {
+     "symbol": "ZEDQ",
+     "exchange": "US",
+     "name": "Zedco Synthetic Inc",
+     "trading_currency": "USD"
+    },
+    "quantity": "2",
+    "price": "207",
+    "net_amount": "-414",
+    "currency": "CAD",
+    "fx_rate": "1.38",
+    "fx_source": "broker"
+   }
+  },
+  {
+   "row_no": 5,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "SELL",
+    "trade_date": "2025-02-10",
+    "settle_date": "2025-02-11",
+    "security": {
+     "symbol": "XQZG",
+     "exchange": "TSX",
+     "name": "Synthetic Growth ETF",
+     "trading_currency": "CAD"
+    },
+    "quantity": "4",
+    "price": "26",
+    "net_amount": "104",
+    "currency": "CAD"
+   }
+  },
+  {
+   "row_no": 6,
+   "status": "warning",
+   "messages": [
+    [
+     "warning",
+     "amount_mismatch"
+    ]
+   ],
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "SELL",
+    "trade_date": "2025-02-10",
+    "settle_date": "2025-02-11",
+    "security": {
+     "symbol": "XQZG",
+     "exchange": "TSX",
+     "name": "Synthetic Growth ETF",
+     "trading_currency": "CAD"
+    },
+    "quantity": "1",
+    "price": "26",
+    "net_amount": "25",
+    "currency": "CAD"
+   }
+  },
+  {
+   "row_no": 7,
+   "status": "warning",
+   "messages": [
+    [
+     "warning",
+     "description_quantity_mismatch"
+    ]
+   ],
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "SELL",
+    "trade_date": "2025-02-11",
+    "settle_date": "2025-02-12",
+    "security": {
+     "symbol": "XQZG",
+     "exchange": "TSX",
+     "name": "Synthetic Growth ETF",
+     "trading_currency": "CAD"
+    },
+    "quantity": "1.5",
+    "price": "26",
+    "net_amount": "39",
+    "currency": "CAD"
+   }
+  },
+  {
+   "row_no": 8,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "DIVIDEND",
+    "trade_date": "2025-03-31",
+    "record_date": "2025-03-14",
+    "pay_date": "2025-03-31",
+    "security": {
+     "symbol": "XQZG",
+     "exchange": "TSX",
+     "name": "Synthetic Growth ETF",
+     "trading_currency": "CAD"
+    },
+    "gross_amount": "1.2",
+    "net_amount": "1.2",
+    "currency": "CAD"
+   }
+  },
+  {
+   "row_no": 9,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "DIVIDEND",
+    "trade_date": "2025-04-15",
+    "record_date": "2025-04-01",
+    "pay_date": "2025-04-15",
+    "security": {
+     "symbol": "ZEDQ",
+     "exchange": "US",
+     "name": "Zedco Synthetic Inc",
+     "trading_currency": "USD"
+    },
+    "gross_amount": "2",
+    "net_amount": "2",
+    "currency": "CAD"
+   }
+  },
+  {
+   "row_no": 10,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "DIVIDEND",
+    "trade_date": "2025-04-15",
+    "record_date": "2025-04-01",
+    "pay_date": "2025-04-15",
+    "security": {
+     "symbol": "XQZG",
+     "exchange": "TSX",
+     "name": "Synthetic Growth ETF",
+     "trading_currency": "CAD"
+    },
+    "gross_amount": "0.8",
+    "net_amount": "0.8",
+    "currency": "CAD"
+   }
+  },
+  {
+   "row_no": 11,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "WITHHOLDING_TAX",
+    "trade_date": "2025-04-16",
+    "net_amount": "-0.3",
+    "currency": "CAD",
+    "related_row": 9,
+    "link_basis": "single"
+   }
+  },
+  {
+   "row_no": 12,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "BUY",
+    "trade_date": "2025-05-01",
+    "settle_date": "2025-05-02",
+    "security": {
+     "symbol": "WYUS",
+     "exchange": "US",
+     "name": "Wyus Synthetic Corp",
+     "trading_currency": "USD"
+    },
+    "quantity": "5",
+    "price": "70",
+    "net_amount": "-350",
+    "currency": "CAD",
+    "fx_rate": "1.37",
+    "fx_source": "broker"
+   }
+  },
+  {
+   "row_no": 13,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "DIVIDEND",
+    "trade_date": "2025-05-15",
+    "record_date": "2025-05-01",
+    "pay_date": "2025-05-15",
+    "security": {
+     "symbol": "ZEDQ",
+     "exchange": "US",
+     "name": "Zedco Synthetic Inc",
+     "trading_currency": "USD"
+    },
+    "gross_amount": "4",
+    "net_amount": "4",
+    "currency": "CAD"
+   }
+  },
+  {
+   "row_no": 14,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "DIVIDEND",
+    "trade_date": "2025-05-15",
+    "record_date": "2025-05-01",
+    "pay_date": "2025-05-15",
+    "security": {
+     "symbol": "WYUS",
+     "exchange": "US",
+     "name": "Wyus Synthetic Corp",
+     "trading_currency": "USD"
+    },
+    "gross_amount": "10",
+    "net_amount": "10",
+    "currency": "CAD"
+   }
+  },
+  {
+   "row_no": 15,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "WITHHOLDING_TAX",
+    "trade_date": "2025-05-15",
+    "net_amount": "-0.6",
+    "currency": "CAD",
+    "related_row": 13,
+    "link_basis": "ratio"
+   }
+  },
+  {
+   "row_no": 16,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "DIVIDEND",
+    "trade_date": "2025-06-16",
+    "record_date": "2025-06-02",
+    "pay_date": "2025-06-16",
+    "security": {
+     "symbol": "ZEDQ",
+     "exchange": "US",
+     "name": "Zedco Synthetic Inc",
+     "trading_currency": "USD"
+    },
+    "gross_amount": "3",
+    "net_amount": "3",
+    "currency": "CAD"
+   }
+  },
+  {
+   "row_no": 17,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "DIVIDEND",
+    "trade_date": "2025-06-16",
+    "record_date": "2025-06-02",
+    "pay_date": "2025-06-16",
+    "security": {
+     "symbol": "WYUS",
+     "exchange": "US",
+     "name": "Wyus Synthetic Corp",
+     "trading_currency": "USD"
+    },
+    "gross_amount": "1",
+    "net_amount": "1",
+    "currency": "CAD"
+   }
+  },
+  {
+   "row_no": 18,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "WITHHOLDING_TAX",
+    "trade_date": "2025-06-16",
+    "net_amount": "-0.9",
+    "currency": "CAD",
+    "link_basis": "allocated",
+    "allocations": [
+     {
+      "row": 16,
+      "amount": "-0.68"
+     },
+     {
+      "row": 17,
+      "amount": "-0.22"
+     }
+    ]
+   }
+  },
+  {
+   "row_no": 19,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "DIVIDEND",
+    "trade_date": "2025-07-21",
+    "record_date": "2025-07-07",
+    "pay_date": "2025-07-21",
+    "security": {
+     "symbol": "ZEDQ",
+     "exchange": "US",
+     "name": "Zedco Synthetic Inc",
+     "trading_currency": "USD"
+    },
+    "gross_amount": "1",
+    "net_amount": "1",
+    "currency": "USD"
+   }
+  },
+  {
+   "row_no": 20,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "WITHHOLDING_TAX",
+    "trade_date": "2025-07-21",
+    "net_amount": "-0.15",
+    "currency": "USD",
+    "related_row": 19,
+    "link_basis": "single"
+   }
+  },
+  {
+   "row_no": 21,
+   "status": "warning",
+   "messages": [
+    [
+     "warning",
+     "unlinked_withholding"
+    ]
+   ],
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "WITHHOLDING_TAX",
+    "trade_date": "2025-08-20",
+    "net_amount": "-0.5",
+    "currency": "CAD"
+   }
+  },
+  {
+   "row_no": 22,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "FEE",
+    "trade_date": "2025-05-31",
+    "net_amount": "-1.5",
+    "currency": "CAD"
+   }
+  },
+  {
+   "row_no": 23,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "FEE",
+    "trade_date": "2025-06-30",
+    "net_amount": "-10",
+    "currency": "CAD"
+   }
+  },
+  {
+   "row_no": 24,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "FEE",
+    "trade_date": "2025-06-02",
+    "net_amount": "0.5",
+    "currency": "CAD"
+   }
+  },
+  {
+   "row_no": 25,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "FEE",
+    "trade_date": "2025-06-10",
+    "net_amount": "-0.3",
+    "currency": "CAD"
+   }
+  },
+  {
+   "row_no": 26,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "FEE",
+    "trade_date": "2025-06-10",
+    "net_amount": "0.3",
+    "currency": "CAD"
+   }
+  },
+  {
+   "row_no": 27,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "WITHDRAWAL",
+    "trade_date": "2025-07-02",
+    "net_amount": "-200",
+    "currency": "CAD"
+   }
+  },
+  {
+   "row_no": 28,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "DEPOSIT",
+    "trade_date": "2025-07-03",
+    "net_amount": "300",
+    "currency": "CAD"
+   }
+  },
+  {
+   "row_no": 29,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "TRANSFER_IN",
+    "trade_date": "2025-07-10",
+    "net_amount": "500",
+    "currency": "USD"
+   }
+  },
+  {
+   "row_no": 30,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "TRANSFER_OUT",
+    "trade_date": "2025-07-11",
+    "net_amount": "-100",
+    "currency": "CAD"
+   }
+  },
+  {
+   "row_no": 31,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000002",
+    "type": "TRANSFER_IN",
+    "trade_date": "2025-08-05",
+    "settle_date": "2025-08-06",
+    "security": {
+     "symbol": "WYUS",
+     "exchange": "US",
+     "name": "Wyus Synthetic Corp",
+     "trading_currency": "USD"
+    },
+    "quantity": "3",
+    "gross_amount": "300",
+    "net_amount": "0",
+    "currency": "USD"
+   }
+  },
+  {
+   "row_no": 32,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "TRANSFER_OUT",
+    "trade_date": "2025-08-06",
+    "settle_date": "2025-08-07",
+    "security": {
+     "symbol": "ZEDQ",
+     "exchange": "US",
+     "name": "Zedco Synthetic Inc",
+     "trading_currency": "USD"
+    },
+    "quantity": "1",
+    "gross_amount": "-210",
+    "net_amount": "0",
+    "currency": "USD"
+   }
+  },
+  {
+   "row_no": 33,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "SPLIT",
+    "trade_date": "2025-09-01",
+    "security": {
+     "symbol": "XQZG",
+     "exchange": "TSX",
+     "name": "Synthetic Growth ETF",
+     "trading_currency": "CAD"
+    },
+    "quantity": "6",
+    "net_amount": "0",
+    "currency": "CAD"
+   }
+  },
+  {
+   "row_no": 34,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "SYMBOL_CHANGE",
+    "trade_date": "2025-10-01",
+    "security": {
+     "symbol": "OLDQ",
+     "name": "Oldname Synthetic Corp"
+    },
+    "quantity": "-20",
+    "net_amount": "0",
+    "currency": "CAD",
+    "group": {
+     "kind": "symbol_change",
+     "key": "symbol_change:34"
+    }
+   }
+  },
+  {
+   "row_no": 35,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "SYMBOL_CHANGE",
+    "trade_date": "2025-10-01",
+    "security": {
+     "symbol": "NEWQ",
+     "exchange": "TSX",
+     "name": "Newname Synthetic Corp",
+     "trading_currency": "CAD"
+    },
+    "quantity": "20",
+    "net_amount": "0",
+    "currency": "CAD",
+    "group": {
+     "kind": "symbol_change",
+     "key": "symbol_change:34"
+    }
+   }
+  },
+  {
+   "row_no": 36,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "SPLIT",
+    "trade_date": "2025-11-03",
+    "security": {
+     "symbol": "RVSQ",
+     "name": "Reverse Synthetic Fund"
+    },
+    "quantity": "-9",
+    "net_amount": "0",
+    "currency": "CAD",
+    "group": {
+     "kind": "split",
+     "key": "split:36"
+    }
+   }
+  },
+  {
+   "row_no": 37,
+   "status": "ok",
+   "normalized": {
+    "account_id": "21000000-0000-0000-0000-000000000001",
+    "type": "SPLIT",
+    "trade_date": "2025-11-03",
+    "security": {
+     "symbol": "RVSQ",
+     "name": "Reverse Synthetic Fund"
+    },
+    "quantity": "3",
+    "net_amount": "0",
+    "currency": "CAD",
+    "group": {
+     "kind": "split",
+     "key": "split:36"
+    }
+   }
+  },
+  {
+   "row_no": 38,
+   "status": "skipped",
+   "messages": [
+    [
+     "info",
+     "untracked_account"
+    ]
+   ],
+   "untracked": {
+    "number": "SY12AB347CAD",
+    "account_type": "TFSA",
+    "proposed_type": "TFSA",
+    "proposed_management": "robo",
+    "proposed_base_currency": "CAD"
+   }
+  },
+  {
+   "row_no": 39,
+   "status": "error",
+   "messages": [
+    [
+     "error",
+     "unmapped_action"
+    ]
+   ],
+   "normalized": null
+  }
+ ]
+}

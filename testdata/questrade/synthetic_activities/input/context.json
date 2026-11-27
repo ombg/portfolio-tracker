@@ -1,0 +1,13 @@
+{
+  "_comment": "Tracked accounts and known broker codes the parser is given (ParseContext). Synthetic (D-20).",
+  "broker": "questrade",
+  "accounts": [
+    {"id": "20000000-0000-0000-0000-000000000001", "external_number": "90000001", "name": "Synthetic TFSA", "type": "TFSA", "base_currency": "CAD"},
+    {"id": "20000000-0000-0000-0000-000000000002", "external_number": "90000002", "name": "Synthetic FHSA", "type": "FHSA", "base_currency": "CAD"},
+    {"id": "20000000-0000-0000-0000-000000000004", "external_number": "90000004", "name": "Synthetic RESP", "type": "RESP", "base_currency": "CAD"}
+  ],
+  "aliases": {
+    "H000123": "30000000-0000-0000-0000-000000000123",
+    "H000555": "30000000-0000-0000-0000-000000000555"
+  }
+}

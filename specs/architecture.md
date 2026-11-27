@@ -37,7 +37,8 @@ browser --HTTPS--> web (Caddy + React SPA)
   tests use hand-written SQL.
 - **User isolation**: portfolio-api connects as the database owner only to run migrations; every request
   transaction starts with `SET LOCAL ROLE pt_app` and `SET LOCAL app.user_id = $1`, and forced RLS policies on every
-  user-owned table filter by it (D-1, `data-model.md`). Internal calls carry the user id explicitly.
+  user-owned table filter by it (D-1, `data-model.md`). Internal calls carry the user id explicitly; the importer
+  connects as its own role `pt_importer` and sets `app.user_id` from that id (D-35).
 - **Money**: never floats. Go uses `decimal.Decimal`, Python uses `decimal.Decimal`, Postgres `NUMERIC(24,8)`.
 - **Time**: timestamps in UTC (`timestamptz`); trade and settlement dates are `date`; market schedule in
   America/Toronto.
@@ -68,6 +69,20 @@ app is reachable from another machine. After login the sign-in page checks the s
 Content-Security-Policy (`default-src 'self'`) and `X-Frame-Options: DENY`.
 M1 screens: sign in; accounts table (open and closed, archived behind "Show archived", robo accounts labelled
 "Managed, account-level only"); one form to create and edit accounts that shows the server's field errors.
+M2 screens (hash routes `#/accounts`, `#/imports`, `#/imports/<id>`, so Caddy serves one static bundle):
+- Imports: upload form (broker, optional target account, file; sends `X-Requested-With`, D-36) and the history
+  table (uploaded, file, broker, accounts, status, counts). A repeated file shows the server's refusal with a link to
+  the earlier import.
+- Preview: status and counts; a notice that names the blocking error rows, or how many rows (and how many with
+  warnings) a commit would write. Rows table filtered by status, each with date, account, type, security,
+  quantity, amount, the importer's messages and the source row (NFR-2). "Fix" appears only where the importer
+  accepts one (unmapped action -> transaction type; unknown, proposed or unlisted security -> symbol and exchange)
+  and explains that the fix is saved as a rule; "Exclude"/"Include" on every row that is not skipped. Untracked
+  account numbers (D-22) offer "Track this account" (account form prefilled from the importer's proposal, then the
+  file is parsed again) or a link to an existing account of the broker without a number.
+- Commit and discard each need a second click on a confirmation that says what happens; nothing is committed
+  silently. A refused commit (`unresolved_securities`) lists the rows and opens their fix. After commit each row
+  shows inserted or duplicate, with the result counts.
 
 ### Accounts (FR-2, D-2, D-14)
 All routes require a session and run in `WithUser`; another user's account answers 404 exactly like a missing one.
@@ -91,11 +106,73 @@ All routes require a session and run in `WithUser`; another user's account answe
 1. Browser uploads file to `POST /api/imports` (portfolio-api), choosing broker and, optionally, target account.
 2. portfolio-api streams it to importer `POST /internal/imports`. importer stores the original (D-12), hashes it,
    rejects exact duplicates (D-8), parses, maps and validates rows into `imports.import_rows` with status
-   `ok | warning | error | duplicate`.
-3. Browser shows preview (`GET /api/imports/{id}`); user fixes mappings (symbol alias, account, action) with
-   `PATCH /api/imports/{id}/rows/{row}`; fixes that are reusable (aliases) are saved as overrides.
+   `ok | warning | error | duplicate | skipped`. See "importer internal API" below.
+3. Browser shows preview (`GET /api/imports/{id}`); user fixes action, symbol or account with
+   `PATCH /api/imports/{id}/rows/{row}`; action and symbol fixes are saved as import rules and the batch is parsed
+   again (D-36).
 4. `POST /api/imports/{id}/commit`: portfolio-api reads staged `ok`/`warning` rows and inserts them into
-   `core.transactions` in one transaction, then marks affected accounts dirty from the earliest date (D-13).
+   `core.transactions` in one transaction (D-37); marking affected accounts dirty from the earliest date (D-13)
+   follows with the valuation cache (M5).
+
+### Import API (FR-3, D-22, D-36)
+All routes require a session; another user's import answers 404 exactly like a missing one. Errors from the
+importer (4xx, same shape) are passed on; when it cannot be reached or fails, 502 `importer_unavailable` (details
+only in the log); without `SERVICE_TOKEN` configured, uploads and corrections answer 503.
+- `POST /api/imports` (multipart: `file`, `broker`, optional `account_id`; header `X-Requested-With:
+  portfolio-tracker`, D-36) -> the importer's 201 body and `Location: /api/imports/{batch_id}`. The body is
+  re-encoded part by part into a pipe to the importer, never held in memory; other fields, a second file or no file
+  give 400, more than 25 MiB gives 413 `file_too_large`.
+- `GET /api/imports` -> `{"imports": [...]}`, newest first (at most 500): id, status, broker, `target_account_id`,
+  `accounts` (accounts with rows that may reach the ledger), file (id, name, size, sha256, uploaded_at), parser and
+  version, counts, `can_commit`, created_at, committed_at. History is per user (RLS), so the user is the caller.
+- `GET /api/imports/{id}` -> the same summary plus `rows` (row_no, status, raw, normalized, messages, user_edits)
+  and `untracked_accounts` (number, the importer's `proposal`, row count) for D-22.
+- `can_commit`: the batch is `parsed` or `needs_review`, has no `error` row and at least one `ok`/`warning` row.
+  Errors block commit until fixed or excluded.
+- `PATCH /api/imports/{id}/rows/{row}` with any of `type` (ledger type for the row's action), `security`
+  (`{"symbol","exchange"}`), `excluded` (bool), `account_id` -> `{"import": summary, "row": row}`. `type`,
+  `security` and `excluded` go to the importer; `account_id` (rows of an untracked account only) stores the row's
+  account number on that account when it has none (422 `unknown_account`, `account_broker_mismatch`,
+  `not_applicable`; 409 `account_has_number`, `duplicate_account_number`), then the batch is parsed again. A batch
+  that is not `parsed`/`needs_review` gives 409 `batch_closed`.
+- `POST /api/imports/{id}/reparse`: parse again after creating an account -> summary.
+- `POST /api/imports/{id}/discard`: status `discarded` (409 `batch_closed` unless open); rows and file stay, and the
+  same file can be uploaded again (D-8).
+- `POST /api/imports/{id}/commit` -> `{"import": summary, "result": {"inserted", "duplicate", "linked_transfers"}}`
+  (D-37). 409 `batch_closed` unless open (so a second commit adds nothing), `not_committable` with error rows or
+  nothing to commit, `unresolved_securities` with `rows: [{row, reason}]` (nothing is written). After commit, each
+  `ok`/`warning` row in `GET /api/imports/{id}` has `outcome` (`inserted`, `duplicate`) and `transaction_id`.
+
+### importer internal API
+Every `/internal/*` call except health needs `X-Service-Token` (compared in constant time) and, for user data,
+`X-User-Id`; the importer opens one transaction per request as `pt_importer` with that `app.user_id` and refuses to
+run as a role that can bypass RLS (D-35). Errors use the same `{"error", "message"}` shape.
+- `GET /internal/health`: 200, or 503 when the database is unreachable.
+- `POST /internal/imports` (multipart: `file`, `broker` code, optional `account_id`) -> 201
+  `{"batch_id", "source_file_id", "status", "counts"}`. Steps, in one transaction:
+  1. The broker must have a parser (422 `unsupported_broker`); the file must be non-empty (422 `empty_file`) and at
+     most 25 MiB (413 `file_too_large`); a target account must be the user's and at that broker (422
+     `unknown_account`, `account_broker_mismatch`).
+  2. SHA-256 of the bytes. If the user already has that file and its latest batch is `parsed`, `needs_review` or
+     `committed`: 409 `duplicate_file` with `batch_id` and `source_file_id` of the earlier import (D-8). After a
+     `failed` or `discarded` batch the same file can be uploaded again and gets a new batch.
+  3. A new file is written once to `FILES_DIR/<first two hex digits>/<sha256>.<ext>`, read-only, and re-hashed after
+     writing; an existing file is reused only if it still matches its hash (D-12).
+  4. The broker's parser gets the bytes, the user's accounts at that broker and the target account. Its rows are
+     staged with their source row numbers. Batch status: `needs_review` if any row is `error` or `warning`, else
+     `parsed`; `counts` holds rows per status. A file the parser cannot read at all gives status `failed` with
+     `counts.failure` (the reason) and no rows.
+  Parsers are versioned (`parser`, `parser_version` on each batch), so new mappings never change earlier batches
+  (FR-3 item 8). Questrade and Wealthsimple parsers are added in #15 and #16.
+- `POST /internal/imports/{id}/reparse` -> 200 `{"batch_id", "status", "counts"}`: parses the stored original
+  again (re-hashed first) with the current accounts, aliases and import rules, applies row edits, and updates every
+  row in place; the batch takes the parser's current version. 404 `not_found` (also another user's batch), 409
+  `batch_closed` unless `parsed`/`needs_review`.
+- `PATCH /internal/imports/{id}/rows/{row}` with `type`, `security` and/or `excluded` -> as reparse, after saving
+  an action rule (422 `invalid_type`; `not_applicable` unless the row's action is unmapped or ruled), a symbol rule
+  (422 `invalid_security`: listed symbol and exchange TSX, TSXV, NEO, CSE or US; `not_applicable` unless the row's
+  code or symbol is unknown, proposed, ruled or its listing open) or the row's exclusion (`not_applicable` for
+  skipped rows). 400 `bad_request` for an empty or unknown field (D-36).
 
 ### Market data (FR-6)
 1. market-data scheduler runs every 30 minutes in market hours (D-3) for every security held by any user.
@@ -126,15 +203,24 @@ backups/                  nightly backups (git-ignored, D-18)
 ```
 
 ## Configuration
-`.env`: `POSTGRES_PASSWORD`, `SERVICE_TOKEN`, `SESSION_SECRET`, `REPORTING_CURRENCY_DEFAULT=CAD`,
-`FILES_DIR=/data/files`, `TZ_MARKET=America/Toronto`. Volumes: `pgdata`, `files`.
+`.env`: `POSTGRES_PASSWORD`, `SERVICE_TOKEN` (at least 32 bytes), `IMPORTER_DB_PASSWORD` (at least 24 characters),
+`SESSION_SECRET`, `REPORTING_CURRENCY_DEFAULT=CAD`, `FILES_DIR=/data/files`, `TZ_MARKET=America/Toronto`.
+Volumes: `pgdata`, `files` (mounted only into the importer).
 
 portfolio-api reads `DATABASE_URL` (owner connection, built by Compose from `POSTGRES_PASSWORD`), `MIGRATIONS_DIR`
 (default `/migrations`, baked into the image from `db/migrations`), `LISTEN_ADDR` (default `:8080`),
-`SESSION_SECRET` (required to serve, at least 32 bytes) and `COOKIE_SECURE` (the binary defaults to `true`; Compose
-sets `false` by default because it serves plain HTTP on 127.0.0.1, and it must be `true` behind HTTPS; D-34). It applies
+`SESSION_SECRET` (required to serve, at least 32 bytes), `IMPORTER_DB_PASSWORD` (set as the `pt_importer`
+password after every migration run; empty removes its login, D-35) and `COOKIE_SECURE` (the binary defaults to `true`; Compose
+sets `false` by default because it serves plain HTTP on 127.0.0.1, and it must be `true` behind HTTPS; D-34),
+`SERVICE_TOKEN` and `IMPORTER_URL` (`http://importer:8000`) for the importer's internal API. It applies
 pending migrations on every start; `api migrate` (`make migrate`) applies them and exits. `GET /api/health` returns
-503 when the database is unreachable. `.dockerignore` keeps `data/`, `backups/`, `context/` and `.env` out of every
+503 when the database is unreachable.
+
+The importer reads `DB_HOST`, `DB_PORT` (5432), `DB_NAME` (`portfolio`), `DB_USER` (`pt_importer`), `DB_PASSWORD`
+(from `IMPORTER_DB_PASSWORD`), `SERVICE_TOKEN` and `FILES_DIR` (`/data/files`), and refuses to start with a missing
+password or a short token. It runs as an unprivileged user and is not published to the host. Python dependencies
+are locked with hashes in `services/importer/requirements*.txt` by `make importer-lock`, which ignores releases
+from the last 14 days. `.dockerignore` keeps `data/`, `backups/`, `context/` and `.env` out of every
 build context (D-20).
 
 ## Backups (D-18)

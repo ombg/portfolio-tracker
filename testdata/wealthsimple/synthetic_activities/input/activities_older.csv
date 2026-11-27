@@ -1,0 +1,4 @@
+effective_date,effective_time,settlement_date,account_id,account_name,account_type,activity_type,activity_sub_type,description,direction,symbol,name,currency,quantity,unit_price,commission,net_cash_amount
+2024-12-20,10:00:00.000000,,SY12AB345CAD,TFSA,TFSA,MoneyMovement,EFT,Deposit,,,,CAD,500.00,,,500.00
+2025-01-02,10:00:00.000000,,SY12AB345CAD,TFSA,TFSA,MoneyMovement,EFT,Deposit,,,,CAD,1000.00,,,1000.00
+2025-01-06,10:00:00.000000,2025-01-07,SY12AB345CAD,TFSA,TFSA,Trade,BUY,XQZG - Synthetic Growth ETF: Bought 10.0000 shares at $25.10 per share (executed at 2025-01-06),LONG,XQZG,Synthetic Growth ETF,CAD,10.0000,25.10,0.00,-251.00

@@ -16,6 +16,8 @@ import (
 	"github.com/ombg/portfolio-tracker/services/api/internal/config"
 	"github.com/ombg/portfolio-tracker/services/api/internal/db"
 	"github.com/ombg/portfolio-tracker/services/api/internal/httpapi"
+	"github.com/ombg/portfolio-tracker/services/api/internal/importer"
+	"github.com/ombg/portfolio-tracker/services/api/internal/imports"
 )
 
 func main() {
@@ -36,6 +38,14 @@ func run() error {
 	if err := db.Migrate(cfg.DatabaseURL, cfg.MigrationsDir); err != nil {
 		return err
 	}
+	pool, err := db.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+	if err := db.SetImporterLogin(ctx, pool, cfg.ImporterDBPassword); err != nil {
+		return err
+	}
 	// `api migrate` applies migrations and exits (make migrate); otherwise serve.
 	if len(os.Args) > 1 && os.Args[1] == "migrate" {
 		slog.Info("migrations applied")
@@ -45,17 +55,19 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	pool, err := db.Open(ctx, cfg.DatabaseURL)
-	if err != nil {
-		return err
+
+	var imp *importer.Client
+	if cfg.ServiceToken != "" {
+		imp = importer.New(cfg.ImporterURL, cfg.ServiceToken)
+	} else {
+		slog.Warn("SERVICE_TOKEN is not set: uploads and import corrections are unavailable")
 	}
-	defer pool.Close()
 
 	srv := &http.Server{
 		Addr: cfg.ListenAddr,
 		Handler: httpapi.NewRouter(httpapi.Deps{
 			DB: pool, Auth: auth.NewStore(pool), Signer: signer, CookieSecure: cfg.CookieSecure,
-			Accounts: &accounts.Store{Pool: pool},
+			Accounts: &accounts.Store{Pool: pool}, Imports: &imports.Store{Pool: pool}, Importer: imp,
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 	}

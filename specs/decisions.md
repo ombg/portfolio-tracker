@@ -1,6 +1,6 @@
 # Decisions and PRD review
 
-Status: proposed 2026-11-19; Oliver's answers folded in on 2026-11-20, 2026-11-21, 2026-11-23, 2026-11-24 and 2026-11-25.
+Status: proposed 2026-11-19; Oliver's answers folded in on 2026-11-20, 2026-11-21, 2026-11-23, 2026-11-24 and 2026-11-25; D-35 confirmed 2026-11-26; D-36 and D-37 confirmed 2026-11-27.
 Source of requirements: `chatgpt/docs/portfolio-tracker-requirements.md` (the PRD).
 This file records (a) where the PRD needs clarification or a change and (b) every design decision taken to satisfy it.
 Each decision has an ID; specs reference them as `D-n`. Superseded decisions stay here, marked as such.
@@ -272,6 +272,98 @@ Amends D-33's cookie flags. Fix approved by Oliver 2026-11-25. Found while testi
   cookie, instead of showing the sign-in page again without a message (NFR-4).
 - `make e2e` runs in Chromium, Firefox and WebKit (Safari's engine).
 
+### D-35 Database roles and write paths for the ledger and imports
+Confirmed by Oliver 2026-11-26 (M2, issue #13).
+- **Importer role.** The importer parses untrusted files, so it never gets the owner's credentials. It connects as
+  its own login role `pt_importer` (no BYPASSRLS) and sets `app.user_id` per transaction from the user id that
+  portfolio-api passes with each internal call, so the same RLS policies apply. The migration creates the role
+  without login; portfolio-api enables login with `IMPORTER_DB_PASSWORD` when the importer service is added (#14).
+- **Who writes what.** pt_importer: SELECT on the reference tables, accounts, securities, symbols, aliases and
+  transactions (to resolve rows and pre-check duplicates); SELECT, INSERT, UPDATE on `imports.*`. pt_app: inserts
+  transactions, corrections, securities, symbols and its own aliases; reads `imports.*`; updates only a batch's
+  status, committed_at and counts (commit, discard). Row corrections in the preview go through the importer, which
+  re-validates the row. Neither role may DELETE anything or UPDATE the ledger.
+- **Security master is shared.** Securities and symbols are global facts, so any user's import may add them, and a
+  SYMBOL_CHANGE may close a symbol period (`valid_to`), visible to every user. Accepted for a private, invited-users
+  install; per-user aliases cover broker codes. Global aliases are maintained by the owner only.
+- **Late transfer legs.** When the other leg of an internal transfer arrives (D-27), the link (`group_id`,
+  `counterparty_account_id`, `transfer_status`) is written as corrections with reason "linked automatically
+  (D-27)", never as an UPDATE of the stored row (D-7).
+- **Duplicates count stored rows.** The row duplicate rule (D-8) counts `core.transactions`, not `v_ledger`, so
+  re-importing a file does not bring back rows the user voided.
+
+### D-36 Preview corrections: rules, exclusions and account links
+Proposed 2026-11-26 (M2, issue #17); confirmed by Oliver 2026-11-27 (Q-19).
+- **Fixes are rules, not row patches.** What a user fixes in the preview is almost always a fact about the broker's
+  file that recurs: an action the parser has no mapping for, or a symbol or broker code it cannot place. Both are
+  saved per user and broker in `imports.import_rules` and the batch is parsed again from the stored original, so
+  every row with the same action or code changes at once, and later files need no fix. An action rule
+  (`"Activity Type|Action"` for Questrade, `"activity_type|activity_sub_type"` for Wealthsimple -> ledger type) is
+  used only where the parser has no mapping of its own; a symbol rule (file symbol or code -> symbol + exchange)
+  wins over an alias, never applies to GIC codes (D-26), and is shown on the row (`action_rule`, `symbol_rule`).
+  Rules can be changed, not deleted (D-35: nobody deletes); they never change committed rows (FR-3 item 8).
+- **Aliases follow at commit.** A broker code's rule names a listing, not a security id; the security may not exist
+  before the first commit. Commit (#18) resolves the listing against the security master and then writes the
+  user's `security_aliases` row, so `security_aliases` stays the commit-time source of truth.
+- **Exclusion** is the only per-row edit (`import_rows.user_edits = {"excluded": true}`); an excluded row keeps its
+  messages, does not block commit and can be taken back in. Skipped rows (untracked or other accounts) cannot be
+  excluded.
+- **Untracked accounts.** The preview lists each untracked account number with the importer's proposal. The user
+  either creates the account (accounts API, number filled in) and asks for a re-parse, or links the number to an
+  existing account that has none (`PATCH` with `account_id`; an account with another number is refused, not
+  overwritten). The number is stored on the account, so every later file finds it.
+- **Write paths (D-35).** Rules and row edits are written by the importer, which re-validates; portfolio-api only
+  checks the session and the batch, sets the account number and discards batches.
+- **Upload CSRF.** Uploads are `multipart/form-data`, which a cross-site form can send. `POST /api/imports` must
+  carry `X-Requested-With: portfolio-tracker`: forms cannot set headers and a cross-site fetch with one needs a CORS
+  preflight the API never grants. Every other write still has to be `application/json` (D-33).
+
+### D-37 Commit: duplicates, securities and links
+Proposed 2026-11-26 (M2, issue #18); confirmed by Oliver 2026-11-27 (Q-20).
+- **One transaction, all or nothing, one at a time.** `POST /api/imports/{id}/commit` inserts the batch's `ok` and
+  `warning` rows under a database-wide advisory lock (duplicate counts and the shared security master must not move
+  underneath it). Rows with errors block it (fix or exclude, D-36); so does a security it cannot place, and then
+  nothing is written.
+- **Duplicates (D-8, D-35).** Per natural key, the first m of the batch's k rows are the m rows the ledger already
+  stores (voided ones included); the remaining max(0, k - m) are inserted. A duplicate row still links: it stands for
+  the ledger row it matched. The batch's counts gain `inserted` and `duplicate`, and each committed row shows its
+  outcome and ledger id; the importer's staged rows stay untouched (D-35).
+- **Securities.** A row's security is, in order: the alias's security id; for a GIC, the security behind the user's
+  alias for its code, else a new `gic` security with the terms from the description plus that alias (D-26); else the
+  listing (symbol and exchange, from the file, a symbol rule or the importer's proposal: committing a warning row
+  accepts its proposal) looked up in `security_symbols` on the trade date. An unknown listing becomes a new security
+  whose type stays NULL ("not classified yet", NFR-4) until market data classifies it (M4). An open exchange
+  (Wealthsimple, `import-wealthsimple.md` rule 2) needs exactly one listing of that symbol in the master. A
+  Questrade dividend symbol without `.TO` that the file does not explain is not left open: a CAD row gets a TSX
+  proposal instead, since the master may know only a US listing of the same ticker (`import-questrade.md`, Symbol
+  resolution step 1; Oliver, 2026-11-27, #58). A symbol
+  with periods none of which covers the date, an ambiguous or unknown open listing, or a code without alias, rule or
+  proposal refuses the commit with the rows (`unresolved_securities`); the user fixes them with symbol rules. Broker
+  codes resolved this way are saved as the user's aliases.
+- **Symbol changes (D-15).** The new ticker of a SYMBOL_CHANGE pair that the master does not know yet becomes the old
+  security's symbol from the change date; the old symbol's open period ends that day. A ticker the master already
+  knows keeps its own security, and the pair's shared group carries the change. The old leg (shares out) names the
+  ticker as it was until the change, so its listing is looked up on the day before the change date; a change the
+  master already knows (from another file or user) then resolves both legs to the same security.
+- **Groups.** All legs of an in-file group (FX, symbol change, journal, split) get one `group_id`; a leg already in
+  the ledger lends its group, or receives the new one as a correction.
+- **Withholding tax.** A tax row's `related_id` is its dividend (a new row or the ledger row a duplicate stands for);
+  an allocated tax row points at the dividend with the largest share. Every dividend records the tax attributed to it
+  in `withholding_tax` (a correction for one already in the ledger, added to what it had), so income reports can show
+  per-dividend withholding while cash comes from the WITHHOLDING_TAX rows.
+- **Internal transfers (D-27).** A leg awaiting its counterpart pairs with a leg in the other account (new or in the
+  ledger) that names this account, goes the opposite way, has the same currency and the opposite amount (in kind: the
+  same security and quantity), at most three days apart; the nearest wins. Both get one `group_id` and `linked`; a
+  ledger leg gets them as corrections. Unpaired legs stay `awaiting_counterpart`.
+- **FX rate.** A broker-stated rate is stored as `fx_rate_to_cad` only on USD rows; on a CAD row it described a US
+  listing's price and stays in `raw`.
+- **Not stored yet.** `pay_date` and `shares_on` stay in `raw`; the share-count check (D-29) and marking accounts
+  dirty for the valuation cache (D-13) arrive with M6 and M5.
+- Every corrective link uses the reason "linked automatically at import commit (D-37)".
+
 ## Open questions
 
-None open. Q-15 (GitHub push access) and Q-17 (D-33 confirmation) closed 2026-11-24.
+None.
+
+Closed: Q-15 (GitHub push access) and Q-17 (D-33 confirmation), 2026-11-24; Q-18 (D-35
+confirmation), 2026-11-26; Q-19 (D-36) and Q-20 (D-37), 2026-11-27.

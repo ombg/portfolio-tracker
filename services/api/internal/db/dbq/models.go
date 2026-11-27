@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/shopspring/decimal"
 )
 
 type CoreAccount struct {
@@ -50,12 +50,91 @@ type CorePortfolio struct {
 	Name   string
 }
 
+type CoreSecurity struct {
+	ID              uuid.UUID
+	Name            string
+	SecurityType    *string
+	TradingCurrency string
+	AssetClass      *string
+	IssuerCountry   *string
+	FundDomicile    *string
+	MarketCap       decimal.NullDecimal
+	MarketCapAsOf   *time.Time
+	Identifiers     []byte
+	GicIssuer       *string
+	GicRate         decimal.NullDecimal
+	GicMaturity     *time.Time
+	CreatedAt       time.Time
+}
+
+type CoreSecurityAlias struct {
+	ID         uuid.UUID
+	UserID     *uuid.UUID
+	BrokerID   uuid.UUID
+	Alias      string
+	SecurityID uuid.UUID
+	CreatedAt  time.Time
+}
+
+type CoreSecuritySymbol struct {
+	ID         uuid.UUID
+	SecurityID uuid.UUID
+	Symbol     string
+	Exchange   string
+	ValidFrom  *time.Time
+	ValidTo    *time.Time
+}
+
 type CoreSession struct {
 	ID         uuid.UUID
 	UserID     uuid.UUID
 	CreatedAt  time.Time
 	ExpiresAt  time.Time
 	LastSeenAt time.Time
+}
+
+type CoreTransaction struct {
+	ID                    uuid.UUID
+	UserID                uuid.UUID
+	AccountID             uuid.UUID
+	Type                  string
+	TradeDate             time.Time
+	SettleDate            *time.Time
+	RecordDate            *time.Time
+	SecurityID            *uuid.UUID
+	Quantity              decimal.NullDecimal
+	SplitRatio            decimal.NullDecimal
+	Price                 decimal.NullDecimal
+	Commission            decimal.Decimal
+	GrossAmount           decimal.NullDecimal
+	NetAmount             decimal.Decimal
+	Currency              string
+	FxRateToCad           decimal.NullDecimal
+	FxSource              *string
+	WithholdingTax        decimal.NullDecimal
+	RelatedID             *uuid.UUID
+	LinkBasis             *string
+	GroupID               *uuid.UUID
+	TransferStatus        *string
+	CounterpartyAccountID *uuid.UUID
+	Origin                string
+	SourceFileID          *uuid.UUID
+	SourceRowNo           *int32
+	ImportBatchID         *uuid.UUID
+	NaturalKey            string
+	Raw                   []byte
+	ImportedAt            time.Time
+}
+
+type CoreTransactionCorrection struct {
+	ID            uuid.UUID
+	UserID        uuid.UUID
+	TransactionID uuid.UUID
+	Field         string
+	OldValue      []byte
+	NewValue      []byte
+	Reason        string
+	CreatedAt     time.Time
 }
 
 type CoreUser struct {
@@ -65,5 +144,87 @@ type CoreUser struct {
 	DisplayName       string
 	ReportingCurrency string
 	CreatedAt         time.Time
-	DisabledAt        pgtype.Timestamptz
+	DisabledAt        *time.Time
+}
+
+type CoreVLedger struct {
+	ID                    uuid.UUID
+	UserID                uuid.UUID
+	AccountID             uuid.UUID
+	Type                  string
+	TradeDate             time.Time
+	SettleDate            interface{}
+	RecordDate            interface{}
+	SecurityID            *uuid.UUID
+	Quantity              decimal.NullDecimal
+	SplitRatio            interface{}
+	Price                 interface{}
+	Commission            interface{}
+	GrossAmount           interface{}
+	NetAmount             decimal.Decimal
+	Currency              string
+	FxRateToCad           interface{}
+	FxSource              interface{}
+	WithholdingTax        decimal.NullDecimal
+	RelatedID             interface{}
+	LinkBasis             interface{}
+	GroupID               *uuid.UUID
+	TransferStatus        interface{}
+	CounterpartyAccountID *uuid.UUID
+	Origin                string
+	SourceFileID          *uuid.UUID
+	SourceRowNo           *int32
+	ImportBatchID         *uuid.UUID
+	NaturalKey            string
+	Raw                   []byte
+	ImportedAt            time.Time
+	Corrected             interface{}
+}
+
+type ImportsImportBatch struct {
+	ID            uuid.UUID
+	UserID        uuid.UUID
+	SourceFileID  uuid.UUID
+	BrokerID      uuid.UUID
+	AccountID     *uuid.UUID
+	Parser        string
+	ParserVersion string
+	Status        string
+	Counts        []byte
+	CreatedAt     time.Time
+	CommittedAt   *time.Time
+}
+
+type ImportsImportRow struct {
+	BatchID    uuid.UUID
+	RowNo      int32
+	UserID     uuid.UUID
+	Raw        []byte
+	Normalized []byte
+	Status     string
+	Messages   []byte
+	UserEdits  []byte
+}
+
+type ImportsImportRule struct {
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	BrokerID  uuid.UUID
+	Kind      string
+	SourceKey string
+	Target    []byte
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type ImportsSourceFile struct {
+	ID           uuid.UUID
+	UserID       uuid.UUID
+	Sha256       string
+	OriginalName string
+	Size         int64
+	MediaType    string
+	StoredPath   string
+	UploadedAt   time.Time
+	DeletedAt    *time.Time
 }

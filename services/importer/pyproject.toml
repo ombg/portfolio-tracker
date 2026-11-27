@@ -1,0 +1,11 @@
+# importer: Python 3.12 service (specs/architecture.md). Dependencies are locked in requirements*.txt.
+[project]
+name = "importer"
+version = "0.0.0"
+requires-python = ">=3.12,<3.13"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q -p no:cacheprovider"
+# Starlette suggests a different HTTP client for its TestClient; httpx still works and is what we lock.
+filterwarnings = ["ignore:Using `httpx` with `starlette.testclient` is deprecated"]

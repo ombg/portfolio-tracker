@@ -1,0 +1,39 @@
+effective_date,effective_time,settlement_date,account_id,account_name,account_type,activity_type,activity_sub_type,description,direction,symbol,name,currency,quantity,unit_price,commission,net_cash_amount
+2025-01-02,10:00:00.000000,,SY12AB345CAD,TFSA,TFSA,MoneyMovement,EFT,Deposit,,,,CAD,1000.00,,,1000.00
+2025-01-06,10:00:00.000000,2025-01-07,SY12AB345CAD,TFSA,TFSA,Trade,BUY,XQZG - Synthetic Growth ETF: Bought 10.0000 shares at $25.10 per share (executed at 2025-01-06),LONG,XQZG,Synthetic Growth ETF,CAD,10.0000,25.10,0.00,-251.00
+2025-01-06,10:00:00.000000,2025-01-08,SY12AB345CAD,TFSA,TFSA,Trade,BUY,"ZEDQ - Zedco Synthetic Inc: Bought 2.0000 shares at $207.00 per share (executed at 2025-01-07), FX Rate: 1.3800",LONG,ZEDQ,Zedco Synthetic Inc,CAD,2.0000,207.00,0.00,-414.00
+2025-02-10,10:00:00.000000,2025-02-11,SY12AB345CAD,TFSA,TFSA,Trade,SELL,XQZG - Synthetic Growth ETF: Sold 4.0000 shares at $26.00 per share (executed at 2025-02-10),LONG,XQZG,Synthetic Growth ETF,CAD,-4.0000,26.00,0.00,104.00
+2025-02-10,10:00:00.000000,2025-02-11,SY12AB345CAD,TFSA,TFSA,Trade,SELL,XQZG - Synthetic Growth ETF: Sold 1.0000 shares at $26.00 per share (executed at 2025-02-10),LONG,XQZG,Synthetic Growth ETF,CAD,-1.0000,26.00,0.00,25.00
+2025-02-11,10:00:00.000000,2025-02-12,SY12AB345CAD,TFSA,TFSA,Trade,SELL,XQZG - Synthetic Growth ETF: Sold 2.0000 shares at $26.00 per share (executed at 2025-02-11),LONG,XQZG,Synthetic Growth ETF,CAD,-1.5000,26.00,0.00,39.00
+2025-03-30,10:00:00.000000,,SY12AB345CAD,TFSA,TFSA,Dividend,-,"XQZG - Synthetic Growth ETF: Cash dividend distribution, received on 2025-03-31, record date of 2025-03-14",,XQZG,Synthetic Growth ETF,CAD,1.20,,,1.20
+2025-04-14,10:00:00.000000,,SY12AB345CAD,TFSA,TFSA,Dividend,-,"ZEDQ - Zedco Synthetic Inc: Cash dividend distribution, received on 2025-04-15, record date of 2025-04-01",,ZEDQ,Zedco Synthetic Inc,CAD,2.00,,,2.00
+2025-04-14,10:00:00.000000,,SY12AB345CAD,TFSA,TFSA,Dividend,-,"XQZG - Synthetic Growth ETF: Cash dividend distribution, received on 2025-04-15, record date of 2025-04-01",,XQZG,Synthetic Growth ETF,CAD,0.80,,,0.80
+2025-04-15,10:00:00.000000,,SY12AB345CAD,TFSA,TFSA,Tax,NRT,Non-resident tax (executed at 2025-04-16),,,,CAD,-0.30,,,-0.30
+2025-05-01,10:00:00.000000,2025-05-02,SY12AB345CAD,TFSA,TFSA,Trade,BUY,"WYUS - Wyus Synthetic Corp: Bought 5.0000 shares at $70.00 per share (executed at 2025-05-01), FX Rate: 1.3700",LONG,WYUS,Wyus Synthetic Corp,CAD,5.0000,70.00,0.00,-350.00
+2025-05-14,10:00:00.000000,,SY12AB345CAD,TFSA,TFSA,Dividend,-,"ZEDQ - Zedco Synthetic Inc: Cash dividend distribution, received on 2025-05-15, record date of 2025-05-01",,ZEDQ,Zedco Synthetic Inc,CAD,4.00,,,4.00
+2025-05-14,10:00:00.000000,,SY12AB345CAD,TFSA,TFSA,Dividend,-,"WYUS - Wyus Synthetic Corp: Cash dividend distribution, received on 2025-05-15, record date of 2025-05-01",,WYUS,Wyus Synthetic Corp,CAD,10.00,,,10.00
+2025-05-14,10:00:00.000000,,SY12AB345CAD,TFSA,TFSA,Tax,NRT,Non-resident tax (executed at 2025-05-15),,,,CAD,-0.60,,,-0.60
+2025-06-15,10:00:00.000000,,SY12AB345CAD,TFSA,TFSA,Dividend,-,"ZEDQ - Zedco Synthetic Inc: Cash dividend distribution, received on 2025-06-16, record date of 2025-06-02",,ZEDQ,Zedco Synthetic Inc,CAD,3.00,,,3.00
+2025-06-15,10:00:00.000000,,SY12AB345CAD,TFSA,TFSA,Dividend,-,"WYUS - Wyus Synthetic Corp: Cash dividend distribution, received on 2025-06-16, record date of 2025-06-02",,WYUS,Wyus Synthetic Corp,CAD,1.00,,,1.00
+2025-06-15,10:00:00.000000,,SY12AB345CAD,TFSA,TFSA,Tax,NRT,Non-resident tax (executed at 2025-06-16),,,,CAD,-0.90,,,-0.90
+2025-07-20,10:00:00.000000,,SY12AB345USD,TFSA,TFSA,Dividend,-,"ZEDQ - Zedco Synthetic Inc: Cash dividend distribution, received on 2025-07-21, record date of 2025-07-07",,ZEDQ,Zedco Synthetic Inc,USD,1.00,,,1.00
+2025-07-20,10:00:00.000000,,SY12AB345USD,TFSA,TFSA,Tax,NRT,Non-resident tax (executed at 2025-07-21),,,,USD,-0.15,,,-0.15
+2025-08-19,10:00:00.000000,,SY12AB345CAD,TFSA,TFSA,Tax,NRT,Non-resident tax (executed at 2025-08-20),,,,CAD,-0.50,,,-0.50
+2025-05-30,10:00:00.000000,,SY12AB345CAD,TFSA,TFSA,Fee,-,Management fee (executed at 2025-05-31),,,,CAD,-1.50,,,-1.50
+2025-06-30,10:00:00.000000,,SY12AB345CAD,TFSA,TFSA,Fee,-,Subscription fee for the period 2025-06-01 to 2025-06-30,,,,CAD,-10.00,,,-10.00
+2025-06-01,10:00:00.000000,,SY12AB345CAD,TFSA,TFSA,AdministrativePayment,MANAGEMENT_FEE_REFUND,CAD Refund (executed at 2025-06-02),,,,CAD,0.50,,,0.50
+2025-06-09,10:00:00.000000,,SY12AB345CAD,TFSA,TFSA,AdministrativePayment,MANAGEMENT_FEE_REFUND,CAD Refund (executed at 2025-06-10),,,,CAD,-0.30,,,-0.30
+2025-06-09,10:00:00.000000,,SY12AB345CAD,TFSA,TFSA,AdministrativePayment,MANAGEMENT_FEE_REFUND,CAD Refund (executed at 2025-06-10),,,,CAD,0.30,,,0.30
+2025-07-01,10:00:00.000000,,SY12AB345CAD,TFSA,TFSA,MoneyMovement,EFT,Withdrawal (executed at 2025-07-02),,,,CAD,-200.00,,,-200.00
+2025-07-03,10:00:00.000000,,SY12AB345CAD,TFSA,TFSA,MoneyMovement,E_TRFIN,Synthetic e-Transfer Received,,,,CAD,300.00,,,300.00
+2025-07-09,10:00:00.000000,,SY12AB345USD,TFSA,TFSA,MoneyMovement,TRANSFER_TF,Institutional transfer into the account (executed at 2025-07-10),,,,USD,500.00,,,500.00
+2025-07-10,10:00:00.000000,,SY12AB345CAD,TFSA,TFSA,MoneyMovement,TRANSFER_TF,Institutional transfer out of the account (executed at 2025-07-11),,,,CAD,-100.00,,,-100.00
+2025-08-04,10:00:00.000000,2025-08-06,SY12AB346CAD,FHSA,FHSA,InternalSecurityTransfer,-,WYUS - Wyus Synthetic Corp: Institutional transfer of 3.0000 shares into the account (executed at 2025-08-05),,WYUS,Wyus Synthetic Corp,USD,3.0000,,,300.00
+2025-08-05,10:00:00.000000,2025-08-07,SY12AB345CAD,TFSA,TFSA,InternalSecurityTransfer,-,ZEDQ - Zedco Synthetic Inc: Institutional transfer of 1.0000 shares out of the account (executed at 2025-08-06),,ZEDQ,Zedco Synthetic Inc,USD,-1.0000,,,-210.00
+2025-08-31,10:00:00.000000,,SY12AB345CAD,TFSA,TFSA,CorporateAction,SUBDIVISION,XQZG - Synthetic Growth ETF - Stock Split Dividend: Corrected quantity of shares by 6.0000 (executed at 2025-09-01),LONG,XQZG,Synthetic Growth ETF,,6.0000,,,0.00
+2025-09-30,10:00:00.000000,,SY12AB345CAD,TFSA,TFSA,LegacyCorporateAction,NAME_CHANGE,OLDQ - Oldname Synthetic Corp: Distribution of -20.0000 shares (executed at 2025-10-01),LONG,OLDQ,Oldname Synthetic Corp,,-20.0000,,,0.00
+2025-09-30,10:00:00.000000,,SY12AB345CAD,TFSA,TFSA,LegacyCorporateAction,NAME_CHANGE,NEWQ.TO - Newname Synthetic Corp: Distribution of 20.0000 shares (executed at 2025-10-01),LONG,NEWQ.TO,Newname Synthetic Corp,,20.0000,,,0.00
+2025-11-02,10:00:00.000000,,SY12AB345CAD,TFSA,TFSA,LegacyCorporateAction,NAME_CHANGE,RVSQ - Reverse Synthetic Fund: Corrected quantity of shares by -9.0000 (executed at 2025-11-03),LONG,RVSQ,Reverse Synthetic Fund,,-9.0000,,,0.00
+2025-11-02,10:00:00.000000,,SY12AB345CAD,TFSA,TFSA,LegacyCorporateAction,NAME_CHANGE,RVSQ - Reverse Synthetic Fund: Corrected quantity of shares by 3.0000 (executed at 2025-11-03),LONG,RVSQ,Reverse Synthetic Fund,,3.0000,,,0.00
+2025-01-06,10:00:00.000000,2025-01-07,SY12AB347CAD,Synthetic Growth portfolio,TFSA,Trade,BUY,XQZG - Synthetic Growth ETF: Bought 3.0000 shares at $25.10 per share (executed at 2025-01-06),LONG,XQZG,Synthetic Growth ETF,CAD,3.0000,25.10,0.00,-75.30
+2025-11-29,10:00:00.000000,,SY12AB345CAD,TFSA,TFSA,Interest,-,Interest (executed at 2025-11-30),,,,CAD,0.10,,,0.10

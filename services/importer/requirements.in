@@ -1,0 +1,6 @@
+# Direct runtime dependencies. requirements.txt is the locked set with hashes: regenerate with `make importer-lock`.
+fastapi
+uvicorn
+psycopg[binary]
+python-multipart
+openpyxl

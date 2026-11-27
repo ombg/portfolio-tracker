@@ -1,0 +1,211 @@
+{
+ "_comment": "Staged rows as the importer stores them (status, raw, normalized). Synthetic (D-20); see README.md.",
+ "broker": "questrade",
+ "rows": [
+  {
+   "row_no": 2,
+   "status": "ok",
+   "raw": {
+    "Row": "2"
+   },
+   "normalized": {
+    "account_id": "20000000-0000-0000-0000-000000000001",
+    "type": "DEPOSIT",
+    "trade_date": "2025-01-02",
+    "settle_date": null,
+    "record_date": null,
+    "pay_date": null,
+    "security": null,
+    "quantity": null,
+    "split_ratio": null,
+    "price": null,
+    "commission": "0",
+    "gross_amount": null,
+    "net_amount": "1000",
+    "currency": "CAD",
+    "fx_rate": null,
+    "fx_source": null,
+    "group": null,
+    "related_row": null,
+    "link_basis": null,
+    "allocations": null,
+    "counterparty_account_id": null,
+    "transfer_status": null,
+    "shares_on": null,
+    "natural_key": "1111111111111111111111111111111111111111111111111111111111111111"
+   }
+  },
+  {
+   "row_no": 3,
+   "status": "ok",
+   "raw": {
+    "Row": "3"
+   },
+   "normalized": {
+    "account_id": "20000000-0000-0000-0000-000000000001",
+    "type": "BUY",
+    "trade_date": "2025-01-06",
+    "settle_date": null,
+    "record_date": null,
+    "pay_date": null,
+    "security": {
+     "symbol": "QZDP",
+     "exchange": "TSX",
+     "broker_code": null,
+     "security_id": null,
+     "proposed": null,
+     "name": "SYNTHETIC QZDP",
+     "security_type": null,
+     "trading_currency": "CAD",
+     "gic": null
+    },
+    "quantity": "10",
+    "split_ratio": null,
+    "price": "20",
+    "commission": "0",
+    "gross_amount": "-200",
+    "net_amount": "-200",
+    "currency": "CAD",
+    "fx_rate": null,
+    "fx_source": null,
+    "group": null,
+    "related_row": null,
+    "link_basis": null,
+    "allocations": null,
+    "counterparty_account_id": null,
+    "transfer_status": null,
+    "shares_on": null,
+    "natural_key": "2222222222222222222222222222222222222222222222222222222222222222"
+   }
+  },
+  {
+   "row_no": 4,
+   "status": "ok",
+   "raw": {
+    "Row": "4"
+   },
+   "normalized": {
+    "account_id": "20000000-0000-0000-0000-000000000001",
+    "type": "BUY",
+    "trade_date": "2025-01-06",
+    "settle_date": null,
+    "record_date": null,
+    "pay_date": null,
+    "security": {
+     "symbol": "QZDP",
+     "exchange": "TSX",
+     "broker_code": null,
+     "security_id": null,
+     "proposed": null,
+     "name": "SYNTHETIC QZDP",
+     "security_type": null,
+     "trading_currency": "CAD",
+     "gic": null
+    },
+    "quantity": "10",
+    "split_ratio": null,
+    "price": "20",
+    "commission": "0",
+    "gross_amount": "-200",
+    "net_amount": "-200",
+    "currency": "CAD",
+    "fx_rate": null,
+    "fx_source": null,
+    "group": null,
+    "related_row": null,
+    "link_basis": null,
+    "allocations": null,
+    "counterparty_account_id": null,
+    "transfer_status": null,
+    "shares_on": null,
+    "natural_key": "2222222222222222222222222222222222222222222222222222222222222222"
+   }
+  },
+  {
+   "row_no": 5,
+   "status": "ok",
+   "raw": {
+    "Row": "5"
+   },
+   "normalized": {
+    "account_id": "20000000-0000-0000-0000-000000000001",
+    "type": "DIVIDEND",
+    "trade_date": "2025-02-14",
+    "settle_date": null,
+    "record_date": "2025-02-07",
+    "pay_date": null,
+    "security": {
+     "symbol": "ZZDP",
+     "exchange": "US",
+     "broker_code": null,
+     "security_id": null,
+     "proposed": null,
+     "name": "SYNTHETIC ZZDP",
+     "security_type": null,
+     "trading_currency": "USD",
+     "gic": null
+    },
+    "quantity": null,
+    "split_ratio": null,
+    "price": null,
+    "commission": "0",
+    "gross_amount": "10",
+    "net_amount": "10",
+    "currency": "USD",
+    "fx_rate": null,
+    "fx_source": null,
+    "group": null,
+    "related_row": null,
+    "link_basis": null,
+    "allocations": null,
+    "counterparty_account_id": null,
+    "transfer_status": null,
+    "shares_on": null,
+    "natural_key": "3333333333333333333333333333333333333333333333333333333333333333"
+   }
+  },
+  {
+   "row_no": 6,
+   "status": "ok",
+   "raw": {
+    "Row": "6"
+   },
+   "normalized": {
+    "account_id": "20000000-0000-0000-0000-000000000001",
+    "type": "WITHHOLDING_TAX",
+    "trade_date": "2025-02-14",
+    "settle_date": null,
+    "record_date": null,
+    "pay_date": null,
+    "security": {
+     "symbol": "ZZDP",
+     "exchange": "US",
+     "broker_code": null,
+     "security_id": null,
+     "proposed": null,
+     "name": "SYNTHETIC ZZDP",
+     "security_type": null,
+     "trading_currency": "USD",
+     "gic": null
+    },
+    "quantity": null,
+    "split_ratio": null,
+    "price": null,
+    "commission": "0",
+    "gross_amount": null,
+    "net_amount": "-1.5",
+    "currency": "USD",
+    "fx_rate": null,
+    "fx_source": null,
+    "group": null,
+    "related_row": 5,
+    "link_basis": "single",
+    "allocations": null,
+    "counterparty_account_id": null,
+    "transfer_status": null,
+    "shares_on": null,
+    "natural_key": "4444444444444444444444444444444444444444444444444444444444444444"
+   }
+  }
+ ]
+}
