@@ -99,7 +99,9 @@ M3 screens (D-38; routes `#/holdings`, `#/securities/<id>`; nav gains "Holdings"
     reason, and totals say what they exclude; never 0 (NFR-4). Flags appear as badges on the row and are explained
     on hover and on the security page: `negative_holding` (position excluded from values from that date),
     `cost_unknown` (in-kind transfer in without a value), `fx_missing` (CAD book value not known yet),
-    `estimated_cost` (D-31).
+    `estimated_cost` (D-31). An unknown value reads "Unknown" (in the warning colour) and a closed position's average
+    cost reads "–": nothing is held, which is not the same as unknown. Decimals are rounded for display with string
+    arithmetic, never floats (money 2 places, per-share cost up to 4).
 - Security detail: header (symbol and exchange with earlier symbols, name, type or "Not classified yet", trading
   currency); the combined line; one row per account (account, registered or not, quantity, average cost, book
   value, realized gain, income); and every ledger row of the security in those accounts (date, account, type,
