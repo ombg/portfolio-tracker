@@ -2,7 +2,8 @@
 
 Releases are tagged `ver-x.y.z` on `main` (`CONTRIBUTING.md`). Newest first.
 
-## Unreleased
+## ver-0.2.0 (2026-11-27)
+M2 Imports: AC-2, AC-3 and AC-4 pass in the browser (Chromium, Firefox, WebKit).
 - Fix (Questrade, #58): dividend rows name TSX securities without `.TO` (plain, dot-prefixed or as units). They
   now take the TSX listing the file's trades use; a CAD symbol the file does not explain is proposed on the TSX
   for the user to confirm, never read as US. Before, these rows were silently resolved to US listings or were
