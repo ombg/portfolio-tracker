@@ -339,7 +339,9 @@ Proposed 2026-11-26 (M2, issue #18); confirmed by Oliver 2026-11-27 (Q-20).
   codes resolved this way are saved as the user's aliases.
 - **Symbol changes (D-15).** The new ticker of a SYMBOL_CHANGE pair that the master does not know yet becomes the old
   security's symbol from the change date; the old symbol's open period ends that day. A ticker the master already
-  knows keeps its own security, and the pair's shared group carries the change.
+  knows keeps its own security, and the pair's shared group carries the change. The old leg (shares out) names the
+  ticker as it was until the change, so its listing is looked up on the day before the change date; a change the
+  master already knows (from another file or user) then resolves both legs to the same security.
 - **Groups.** All legs of an in-file group (FX, symbol change, journal, split) get one `group_id`; a leg already in
   the ledger lends its group, or receives the new one as a correction.
 - **Withholding tax.** A tax row's `related_id` is its dividend (a new row or the ledger row a duplicate stands for);

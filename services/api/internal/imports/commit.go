@@ -299,7 +299,7 @@ func (c *committer) resolve(it *item) error {
 		c.unresolved(it, "no symbol, alias or rule for this security")
 		return nil
 	}
-	id, reason, err := c.findListing(symbol, exchange, it.tradeDate)
+	id, reason, err := c.findListing(symbol, exchange, listingDate(it))
 	if err != nil {
 		return err
 	}
@@ -318,6 +318,16 @@ func (c *committer) resolve(it *item) error {
 			Alias: *sec.BrokerCode, SecurityID: *id})
 	}
 	return nil
+}
+
+// listingDate is the day a row's symbol is looked up on. The old leg of a symbol change names the ticker as it was
+// until the change, and a known change ends that ticker's period on the change date (valid_to is exclusive), so
+// that leg is looked up on the day before.
+func listingDate(it *item) time.Time {
+	if it.n.Type == "SYMBOL_CHANGE" && it.n.Quantity.Valid && it.n.Quantity.Decimal.IsNegative() {
+		return it.tradeDate.AddDate(0, 0, -1)
+	}
+	return it.tradeDate
 }
 
 // resolveNewTicker: the new leg of a symbol change. A ticker the master does not know yet becomes the old
