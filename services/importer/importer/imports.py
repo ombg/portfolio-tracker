@@ -64,7 +64,16 @@ def import_file(settings: Settings, parser: Parser, up: Upload) -> dict[str, Any
                 (broker_id,),
             ).fetchall()
         )
-        ctx = ParseContext(broker=up.broker, accounts=accounts, target_account_id=up.account_id)
+        # RLS returns global aliases and the user's own; ordering puts the user's last so they win.
+        aliases = {
+            r["alias"]: r["security_id"]
+            for r in conn.execute(
+                """SELECT alias, security_id FROM core.security_aliases WHERE broker_id = %s
+                   ORDER BY user_id NULLS FIRST""",
+                (broker_id,),
+            ).fetchall()
+        }
+        ctx = ParseContext(broker=up.broker, accounts=accounts, target_account_id=up.account_id, aliases=aliases)
         try:
             rows = parser.parse(up.data, up.filename, ctx)
             _check_rows(rows)

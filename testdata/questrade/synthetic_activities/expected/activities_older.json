@@ -1,0 +1,11 @@
+{
+  "_comment": "Hand-written expected output for input/activities_older.{csv,xlsx}. Rows 3 and 4 equal main rows 2 and 3, so their natural keys must be equal too (D-8, D-28).",
+  "same_natural_key_as_main": {"3": 2, "4": 3},
+  "rows": [
+    {"row_no": 2, "status": "ok", "normalized": {"account_id": "20000000-0000-0000-0000-000000000001", "type": "DEPOSIT", "trade_date": "2024-12-20", "settle_date": "2024-12-20", "net_amount": "1000", "currency": "CAD"}},
+    {"row_no": 3, "status": "ok", "normalized": {"account_id": "20000000-0000-0000-0000-000000000001", "type": "DEPOSIT", "trade_date": "2025-01-02", "settle_date": "2025-01-02", "net_amount": "5000", "currency": "CAD"}},
+    {"row_no": 4, "status": "ok", "normalized": {"account_id": "20000000-0000-0000-0000-000000000001", "type": "BUY", "trade_date": "2025-01-06", "settle_date": "2025-01-07",
+      "security": {"symbol": "QZGR", "exchange": "TSX", "name": "SYNTHETIC GROWTH ETF", "trading_currency": "CAD"},
+      "quantity": "100", "price": "25.1", "commission": "4.95", "gross_amount": "-2510", "net_amount": "-2514.95", "currency": "CAD"}}
+  ]
+}

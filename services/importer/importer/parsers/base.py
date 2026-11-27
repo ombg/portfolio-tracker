@@ -3,6 +3,7 @@ change historical data (FR-3 item 8)."""
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 from uuid import UUID
@@ -25,6 +26,8 @@ class ParseContext:
     broker: str
     accounts: tuple[TrackedAccount, ...]  # the user's accounts at this broker
     target_account_id: UUID | None  # chosen at upload, if any
+    # Broker codes with a saved alias (security_aliases: global, then the user's own) -> security id.
+    aliases: Mapping[str, UUID] = field(default_factory=dict)
 
 
 @dataclass
