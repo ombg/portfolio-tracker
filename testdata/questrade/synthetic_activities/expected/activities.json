@@ -33,7 +33,7 @@
     {"row_no": 12, "status": "ok", "normalized": {"account_id": "20000000-0000-0000-0000-000000000001", "type": "WITHHOLDING_TAX", "trade_date": "2025-06-16", "settle_date": "2025-06-16",
       "record_date": "2025-06-02", "pay_date": "2025-06-16",
       "security": {"symbol": "ZZUS", "exchange": "US", "name": "ZEDCO SYNTHETIC INC", "trading_currency": "USD"},
-      "net_amount": "-0.3", "currency": "USD", "related_row": 11}},
+      "net_amount": "-0.3", "currency": "USD", "related_row": 11, "link_basis": "single"}},
     {"row_no": 13, "status": "warning", "messages": [["warning", "proposed_security"]], "normalized": {"account_id": "20000000-0000-0000-0000-000000000001", "type": "SPLIT", "trade_date": "2025-07-08", "settle_date": "2025-07-08",
       "record_date": "2025-07-01", "pay_date": "2025-07-08", "shares_on": "5",
       "security": {"broker_code": "H000777", "name": "ZEDCO SYNTHETIC INC", "trading_currency": "USD", "proposed": {"symbol": "ZZUS", "exchange": "US", "from_row": 4}},

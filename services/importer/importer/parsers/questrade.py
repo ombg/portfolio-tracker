@@ -19,6 +19,7 @@ from typing import Any
 from uuid import UUID
 
 from .base import ParseContext, ParseError, Row
+from .common import fmt
 
 HEADER = (
     "Transaction Date", "Settlement Date", "Action", "Symbol", "Description", "Quantity", "Price", "Gross Amount",
@@ -125,14 +126,6 @@ def _dec(s: str, field_name: str) -> Decimal:
         return Decimal(s or "0")
     except InvalidOperation:
         raise _RowError("bad_number", f"{field_name} is not a number: {s!r}") from None
-
-
-def fmt(d: Decimal | None) -> str | None:
-    """Canonical decimal text: no exponent, no trailing zeros ("25.10000000" -> "25.1")."""
-    if d is None:
-        return None
-    s = format(d.normalize(), "f")
-    return "0" if s in ("-0", "") else s
 
 
 def _date(s: str, field_name: str, required: bool = True) -> str | None:
@@ -270,8 +263,8 @@ class _Parse:
             "settle_date": _date(rec["Settlement Date"], "Settlement Date", required=False),
             "record_date": None, "pay_date": None, "security": None, "quantity": None, "split_ratio": None,
             "price": None, "commission": "0", "gross_amount": None, "net_amount": fmt(net), "currency": currency,
-            "fx_rate": None, "fx_source": None, "group": None, "related_row": None,
-            "counterparty_account_id": None, "transfer_status": None, "shares_on": None,
+            "fx_rate": None, "fx_source": None, "group": None, "related_row": None, "link_basis": None,
+            "allocations": None, "counterparty_account_id": None, "transfer_status": None, "shares_on": None,
             "natural_key": natural_key(acct.id, rec),
         }
         t = self._type(action, activity, desc, rec["Symbol"], net)
@@ -452,7 +445,7 @@ class _Parse:
                 continue
             hits = dividends.get(_income_key(n), [])
             if len(hits) == 1:
-                n["related_row"] = hits[0]
+                n["related_row"], n["link_basis"] = hits[0], "single"
             else:
                 w.warn("unlinked_withholding", "no single matching dividend in this file; linked at commit or by hand")
 

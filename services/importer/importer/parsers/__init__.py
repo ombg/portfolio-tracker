@@ -1,10 +1,11 @@
-"""Registered parsers by broker code. The Wealthsimple parser (#16) is added here next."""
+"""Registered parsers by broker code."""
 
 from __future__ import annotations
 
 from .base import Parser
 from .questrade import QuestradeParser
+from .wealthsimple import WealthsimpleParser
 
 
 def default_parsers() -> dict[str, Parser]:
-    return {"questrade": QuestradeParser()}
+    return {"questrade": QuestradeParser(), "wealthsimple": WealthsimpleParser()}
