@@ -32,6 +32,8 @@ const STATUS_LABELS: Record<RowStatus, string> = {
   excluded: "Excluded",
 };
 
+// Rows a commit refused (`unresolved_securities`), with the reason and the row's security at that moment.
+type Refusal = { reason: string; security: string };
 type Unresolved = Map<number, string>;
 
 function codes(row: ImportRow): Set<string> {
@@ -68,7 +70,7 @@ export function ImportPreview({ id }: { id: string }) {
   const [filter, setFilter] = useState<RowStatus | "all">("all");
   const [confirm, setConfirm] = useState<"commit" | "discard" | null>(null);
   const [result, setResult] = useState<CommitResult | null>(null);
-  const [unresolved, setUnresolved] = useState<Unresolved>(new Map());
+  const [refused, setRefused] = useState<Map<number, Refusal>>(new Map());
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["import", id] });
@@ -92,14 +94,22 @@ export function ImportPreview({ id }: { id: string }) {
     onSuccess: (res) => {
       setConfirm(null);
       setResult(res.result);
-      setUnresolved(new Map());
+      setRefused(new Map());
       refresh();
     },
     onError: (err) => {
       setConfirm(null);
       if (err instanceof ApiError && err.code === "unresolved_securities") {
         const rows = (err.data.rows as { row: number; reason: string }[] | undefined) ?? [];
-        setUnresolved(new Map(rows.map((r) => [r.row, r.reason])));
+        const current = new Map((detail.data?.rows ?? []).map((r) => [r.row_no, r]));
+        setRefused(
+          new Map(
+            rows.map((r) => [
+              r.row,
+              { reason: r.reason, security: JSON.stringify(current.get(r.row)?.normalized?.security ?? null) },
+            ]),
+          ),
+        );
       }
     },
   });
@@ -118,6 +128,16 @@ export function ImportPreview({ id }: { id: string }) {
   }
 
   const d = detail.data;
+  // A refused row stays listed until a fix changes its security or it is excluded.
+  const byNo = new Map(d.rows.map((r) => [r.row_no, r]));
+  const unresolved: Unresolved = new Map(
+    [...refused]
+      .filter(([no, f]) => {
+        const r = byNo.get(no);
+        return r && r.status !== "excluded" && JSON.stringify(r.normalized?.security ?? null) === f.security;
+      })
+      .map(([no, f]) => [no, f.reason]),
+  );
   const open = d.status === "parsed" || d.status === "needs_review";
   const accountNames = new Map((accounts.data ?? []).map((a) => [a.id, a.name]));
   const present = ROW_STATUSES.filter((s) => d.rows.some((r) => r.status === s));
@@ -140,6 +160,9 @@ export function ImportPreview({ id }: { id: string }) {
       <p className="status">
         {d.broker.name} · uploaded {formatTime(d.created_at)} · parser {d.parser} v{d.parser_version}
         {d.committed_at && <> · committed {formatTime(d.committed_at)}</>}
+      </p>
+      <p className="status sub" aria-label="File fingerprint">
+        Stored original, SHA-256 <code>{d.file.sha256}</code>
       </p>
       <p aria-label="Row counts">{countsText(d.counts, d.status)}</p>
 

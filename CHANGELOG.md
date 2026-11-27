@@ -3,6 +3,16 @@
 Releases are tagged `ver-x.y.z` on `main` (`CONTRIBUTING.md`). Newest first.
 
 ## Unreleased
+- Playwright acceptance tests for imports (`ac2-imports.spec.ts`, #20): AC-2 (both brokers' synthetic histories
+  committed; each preview shows the stored original's SHA-256, and `scripts/e2e.sh` checks afterwards that every
+  stored file is byte-identical to a fixture and read-only), AC-3 (unmapped actions, unknown broker codes, an invalid
+  correction, untracked accounts linked and tracked, a refused commit for unknown exchanges, exclusion), AC-4 (same
+  file refused, overlapping and re-uploaded files add only new rows), and FR-1 isolation. A third synthetic user per
+  browser runs them.
+- Fix (D-37): the old leg of a symbol change is looked up on the day before the change, so a change already in the
+  security master (committed from another file or by another user) no longer refuses the commit.
+- Web: the import preview shows the stored file's SHA-256; a refused commit's list drops rows once a fix changes
+  their security or they are excluded.
 - Web: Imports page (FR-3, #19). Upload a Questrade or Wealthsimple export (optionally for one account); preview
   every row with its status, messages and source row, filtered by status; fix an unmapped action or an unknown
   security inline (saved as a rule, D-36), exclude or include rows, track an untracked account number with a
