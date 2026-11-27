@@ -1,6 +1,6 @@
 # Decisions and PRD review
 
-Status: proposed 2026-11-19; Oliver's answers folded in on 2026-11-20, 2026-11-21, 2026-11-23, 2026-11-24 and 2026-11-25; D-35 confirmed 2026-11-26; D-36 proposed 2026-11-26.
+Status: proposed 2026-11-19; Oliver's answers folded in on 2026-11-20, 2026-11-21, 2026-11-23, 2026-11-24 and 2026-11-25; D-35 confirmed 2026-11-26; D-36 and D-37 proposed 2026-11-26.
 Source of requirements: `chatgpt/docs/portfolio-tracker-requirements.md` (the PRD).
 This file records (a) where the PRD needs clarification or a change and (b) every design decision taken to satisfy it.
 Each decision has an ID; specs reference them as `D-n`. Superseded decisions stay here, marked as such.
@@ -318,9 +318,48 @@ Proposed 2026-11-26 (M2, issue #17); awaiting Oliver's confirmation (Q-19).
   carry `X-Requested-With: portfolio-tracker`: forms cannot set headers and a cross-site fetch with one needs a CORS
   preflight the API never grants. Every other write still has to be `application/json` (D-33).
 
+### D-37 Commit: duplicates, securities and links
+Proposed 2026-11-26 (M2, issue #18); awaiting Oliver's confirmation (Q-20).
+- **One transaction, all or nothing, one at a time.** `POST /api/imports/{id}/commit` inserts the batch's `ok` and
+  `warning` rows under a database-wide advisory lock (duplicate counts and the shared security master must not move
+  underneath it). Rows with errors block it (fix or exclude, D-36); so does a security it cannot place, and then
+  nothing is written.
+- **Duplicates (D-8, D-35).** Per natural key, the first m of the batch's k rows are the m rows the ledger already
+  stores (voided ones included); the remaining max(0, k - m) are inserted. A duplicate row still links: it stands for
+  the ledger row it matched. The batch's counts gain `inserted` and `duplicate`, and each committed row shows its
+  outcome and ledger id; the importer's staged rows stay untouched (D-35).
+- **Securities.** A row's security is, in order: the alias's security id; for a GIC, the security behind the user's
+  alias for its code, else a new `gic` security with the terms from the description plus that alias (D-26); else the
+  listing (symbol and exchange, from the file, a symbol rule or the importer's proposal: committing a warning row
+  accepts its proposal) looked up in `security_symbols` on the trade date. An unknown listing becomes a new security
+  whose type stays NULL ("not classified yet", NFR-4) until market data classifies it (M4). An open exchange
+  (Wealthsimple, `import-wealthsimple.md` rule 2) needs exactly one listing of that symbol in the master. A symbol
+  with periods none of which covers the date, an ambiguous or unknown open listing, or a code without alias, rule or
+  proposal refuses the commit with the rows (`unresolved_securities`); the user fixes them with symbol rules. Broker
+  codes resolved this way are saved as the user's aliases.
+- **Symbol changes (D-15).** The new ticker of a SYMBOL_CHANGE pair that the master does not know yet becomes the old
+  security's symbol from the change date; the old symbol's open period ends that day. A ticker the master already
+  knows keeps its own security, and the pair's shared group carries the change.
+- **Groups.** All legs of an in-file group (FX, symbol change, journal, split) get one `group_id`; a leg already in
+  the ledger lends its group, or receives the new one as a correction.
+- **Withholding tax.** A tax row's `related_id` is its dividend (a new row or the ledger row a duplicate stands for);
+  an allocated tax row points at the dividend with the largest share. Every dividend records the tax attributed to it
+  in `withholding_tax` (a correction for one already in the ledger, added to what it had), so income reports can show
+  per-dividend withholding while cash comes from the WITHHOLDING_TAX rows.
+- **Internal transfers (D-27).** A leg awaiting its counterpart pairs with a leg in the other account (new or in the
+  ledger) that names this account, goes the opposite way, has the same currency and the opposite amount (in kind: the
+  same security and quantity), at most three days apart; the nearest wins. Both get one `group_id` and `linked`; a
+  ledger leg gets them as corrections. Unpaired legs stay `awaiting_counterpart`.
+- **FX rate.** A broker-stated rate is stored as `fx_rate_to_cad` only on USD rows; on a CAD row it described a US
+  listing's price and stays in `raw`.
+- **Not stored yet.** `pay_date` and `shares_on` stay in `raw`; the share-count check (D-29) and marking accounts
+  dirty for the valuation cache (D-13) arrive with M6 and M5.
+- Every corrective link uses the reason "linked automatically at import commit (D-37)".
+
 ## Open questions
 
 - **Q-19** Confirm D-36 (preview corrections as rules; aliases written at commit; exclusion as the only row edit).
+- **Q-20** Confirm D-37 (commit rules; unclassified securities; withholding recorded on dividends).
 
 Closed: Q-15 (GitHub push access) and Q-17 (D-33 confirmation), 2026-11-24; Q-18 (D-35
 confirmation), 2026-11-26.

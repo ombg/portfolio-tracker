@@ -25,10 +25,12 @@ ORDER BY b.created_at DESC, b.id
 LIMIT @max_rows;
 
 -- name: ListImportRows :many
-SELECT row_no, status, raw, normalized, messages, user_edits
-FROM imports.import_rows
-WHERE batch_id = @batch_id
-ORDER BY row_no;
+-- transaction_id: the ledger row a committed row became (NULL: not inserted, e.g. a duplicate).
+SELECT r.row_no, r.status, r.raw, r.normalized, r.messages, r.user_edits, t.id AS transaction_id
+FROM imports.import_rows r
+LEFT JOIN core.transactions t ON t.import_batch_id = r.batch_id AND t.source_row_no = r.row_no
+WHERE r.batch_id = @batch_id
+ORDER BY r.row_no;
 
 -- name: GetImportRow :one
 SELECT row_no, status, raw, normalized, messages, user_edits

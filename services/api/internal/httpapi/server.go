@@ -28,7 +28,7 @@ type Deps struct {
 	Accounts     *accounts.Store
 	Imports      *imports.Store
 	Importer     *importer.Client // nil: uploads and corrections answer 503
-	CookieSecure bool // false only for plain-HTTP development outside localhost
+	CookieSecure bool             // false only for plain-HTTP development outside localhost
 }
 
 // NewRouter returns the API router.

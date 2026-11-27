@@ -71,8 +71,9 @@ rest are added (D-28). Rows of untracked accounts are skipped and counted (D-22)
 3. Internal code (letter + 6 digits): a saved alias resolves it. Otherwise match the Description's security name
    against securities traded under a listed symbol in the same file (exact, or one name a prefix of the other, a
    single candidate); propose it as a warning (`proposed_security`); the user confirms or chooses -> symbol rule
-   saved (D-36), and the alias is written when the batch is committed. Matching
-   against securities already in the ledger follows with the commit (#18). Symbol-change legs (NAC), split legs
+   saved (D-36), and the alias is written when the batch is committed; committing the warning row as it is accepts
+   the proposal (D-37). Names are not matched against securities already in the ledger; a code the file does not
+   explain is chosen in the preview. Symbol-change legs (NAC), split legs
    (DIS), journals (BRW) and liquidations (LIQ) usually carry such codes.
 4. GIC codes (digit, five letters or digits, digit, e.g. `1SYNB07`): one security per GIC, type `gic` (D-26);
    issuer = text before " GIC" (or the first date), rate = first percentage, maturity = latest date in the

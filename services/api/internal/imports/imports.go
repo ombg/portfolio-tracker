@@ -27,18 +27,19 @@ type Error struct {
 	Status  int
 	Code    string
 	Message string
+	Extra   map[string]any // more fields for the error body, e.g. the rows a refusal is about
 }
 
 func (e *Error) Error() string { return e.Code + ": " + e.Message }
 
 var (
 	// Another user's import looks exactly like a missing one (FR-1).
-	ErrNotFound    = &Error{404, "not_found", "import not found"}
-	ErrRowNotFound = &Error{404, "not_found", "row not found"}
+	ErrNotFound    = &Error{Status: 404, Code: "not_found", Message: "import not found"}
+	ErrRowNotFound = &Error{Status: 404, Code: "not_found", Message: "row not found"}
 )
 
 func closed(status string) error {
-	return &Error{409, "batch_closed", fmt.Sprintf("the import is %s and can no longer change", status)}
+	return &Error{Status: 409, Code: "batch_closed", Message: fmt.Sprintf("the import is %s and can no longer change", status)}
 }
 
 func isOpen(status string) bool { return status == "parsed" || status == "needs_review" }
@@ -80,6 +81,9 @@ type Row struct {
 	Normalized json.RawMessage `json:"normalized"`
 	Messages   json.RawMessage `json:"messages"`
 	UserEdits  json.RawMessage `json:"user_edits"`
+	// After commit: the ledger row it became, and "inserted" or "duplicate" for rows that were committed (D-8).
+	TransactionID *uuid.UUID `json:"transaction_id,omitempty"`
+	Outcome       string     `json:"outcome,omitempty"`
 }
 
 // Untracked is an account number the file has rows for but the user does not track, with the importer's proposal
@@ -136,7 +140,13 @@ func (s *Store) Get(ctx context.Context, userID, id uuid.UUID) (Detail, error) {
 		seen := map[string]int{}
 		for _, r := range rows {
 			row := Row{RowNo: r.RowNo, Status: r.Status, Raw: r.Raw, Normalized: raw(r.Normalized),
-				Messages: r.Messages, UserEdits: raw(r.UserEdits)}
+				Messages: r.Messages, UserEdits: raw(r.UserEdits), TransactionID: r.TransactionID}
+			if sum.Status == "committed" && (r.Status == "ok" || r.Status == "warning") {
+				row.Outcome = "duplicate"
+				if r.TransactionID != nil {
+					row.Outcome = "inserted"
+				}
+			}
 			out.Rows = append(out.Rows, row)
 			if number, proposal, ok := untracked(row); ok {
 				if i, dup := seen[number]; dup {
@@ -211,26 +221,26 @@ func (s *Store) LinkAccount(ctx context.Context, userID, batchID uuid.UUID, rowN
 		}
 		number, _, ok := untracked(Row{Status: r.Status, Normalized: raw(r.Normalized)})
 		if !ok {
-			return &Error{422, "not_applicable", "only rows of an untracked account can be given an account"}
+			return &Error{Status: 422, Code: "not_applicable", Message: "only rows of an untracked account can be given an account"}
 		}
 		a, err := q.GetAccountForLink(ctx, accountID)
 		if errors.Is(err, pgx.ErrNoRows) {
-			return &Error{422, "unknown_account", "account not found"}
+			return &Error{Status: 422, Code: "unknown_account", Message: "account not found"}
 		} else if err != nil {
 			return err
 		}
 		switch {
 		case a.BrokerID != b.BrokerID:
-			return &Error{422, "account_broker_mismatch", "the account belongs to another broker"}
+			return &Error{Status: 422, Code: "account_broker_mismatch", Message: "the account belongs to another broker"}
 		case a.ExternalNumber != nil && *a.ExternalNumber == number:
 			return nil
 		case a.ExternalNumber != nil:
-			return &Error{409, "account_has_number", "the account already has another account number; change it on the account first"}
+			return &Error{Status: 409, Code: "account_has_number", Message: "the account already has another account number; change it on the account first"}
 		}
 		err = q.SetAccountNumber(ctx, dbq.SetAccountNumberParams{ID: accountID, ExternalNumber: &number})
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return &Error{409, "duplicate_account_number", "another account at this broker already has this account number"}
+			return &Error{Status: 409, Code: "duplicate_account_number", Message: "another account at this broker already has this account number"}
 		}
 		return err
 	})

@@ -41,6 +41,7 @@ func (h *importHandlers) routes(r chi.Router) {
 	r.Patch("/api/imports/{id}/rows/{row}", h.editRow)
 	r.Post("/api/imports/{id}/reparse", h.reparse)
 	r.Post("/api/imports/{id}/discard", h.discard)
+	r.Post("/api/imports/{id}/commit", h.commit)
 }
 
 func (h *importHandlers) list(w http.ResponseWriter, r *http.Request) {
@@ -79,6 +80,26 @@ func (h *importHandlers) discard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, s)
+}
+
+// commit writes the batch into the ledger (D-8, D-37); it needs no importer.
+func (h *importHandlers) commit(w http.ResponseWriter, r *http.Request) {
+	userID, _ := UserID(r.Context())
+	id, ok := importID(w, r)
+	if !ok {
+		return
+	}
+	res, err := h.store.Commit(r.Context(), userID, id)
+	if err != nil {
+		writeImportError(w, "commit import", err)
+		return
+	}
+	s, err := h.store.Summary(r.Context(), userID, id)
+	if err != nil {
+		writeImportError(w, "commit import", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"import": s, "result": res})
 }
 
 func (h *importHandlers) reparse(w http.ResponseWriter, r *http.Request) {
@@ -326,7 +347,11 @@ func (h *importHandlers) writeSummary(w http.ResponseWriter, r *http.Request, us
 func writeImportError(w http.ResponseWriter, op string, err error) {
 	var e *imports.Error
 	if errors.As(err, &e) {
-		writeError(w, e.Status, e.Code, e.Message)
+		body := map[string]any{"error": e.Code, "message": e.Message}
+		for k, v := range e.Extra {
+			body[k] = v
+		}
+		writeJSON(w, e.Status, body)
 		return
 	}
 	internalError(w, op, err)
