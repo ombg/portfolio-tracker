@@ -15,6 +15,7 @@ import (
 	"github.com/ombg/portfolio-tracker/services/api/internal/auth"
 	"github.com/ombg/portfolio-tracker/services/api/internal/config"
 	"github.com/ombg/portfolio-tracker/services/api/internal/db"
+	"github.com/ombg/portfolio-tracker/services/api/internal/holdings"
 	"github.com/ombg/portfolio-tracker/services/api/internal/httpapi"
 	"github.com/ombg/portfolio-tracker/services/api/internal/importer"
 	"github.com/ombg/portfolio-tracker/services/api/internal/imports"
@@ -68,6 +69,7 @@ func run() error {
 		Handler: httpapi.NewRouter(httpapi.Deps{
 			DB: pool, Auth: auth.NewStore(pool), Signer: signer, CookieSecure: cfg.CookieSecure,
 			Accounts: &accounts.Store{Pool: pool}, Imports: &imports.Store{Pool: pool}, Importer: imp,
+			Holdings: &holdings.Store{Pool: pool},
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 	}

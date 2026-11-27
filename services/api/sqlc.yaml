@@ -75,6 +75,16 @@ sql:
               pointer: true
           - column: core.v_ledger.quantity
             go_type: github.com/shopspring/decimal.NullDecimal
+          - column: core.v_ledger.split_ratio
+            go_type: github.com/shopspring/decimal.NullDecimal
+          - column: core.v_ledger.price
+            go_type: github.com/shopspring/decimal.NullDecimal
+          - column: core.v_ledger.gross_amount
+            go_type: github.com/shopspring/decimal.NullDecimal
+          - column: core.v_ledger.fx_rate_to_cad
+            go_type: github.com/shopspring/decimal.NullDecimal
+          - column: core.v_ledger.commission
+            go_type: github.com/shopspring/decimal.Decimal
           - column: core.v_ledger.counterparty_account_id
             go_type:
               import: github.com/google/uuid

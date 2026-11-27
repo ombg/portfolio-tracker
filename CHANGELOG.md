@@ -3,6 +3,11 @@
 Releases are tagged `ver-x.y.z` on `main` (`CONTRIBUTING.md`). Newest first.
 
 ## Unreleased
+- Holdings API (#23, FR-7, D-38): `GET /api/holdings?scope=…` returns positions and cash per account, a combined line
+  per security (managed accounts left out and named), and totals that count what they leave out; market value is
+  `null` with reason `no_price` until M4. `GET /api/securities/{id}` returns a security's symbols, positions per
+  account and every ledger row with its source file and row. RLS-isolated; tested with a second user.
+- D-38 confirmed (Q-21).
 - Ledger replay (`services/api/internal/calc`, #22): quantity, average cost and book value per account and security
   in the book currency and in CAD, realized gain, income net of withholding, and cash per currency. Splits (ratio
   and delta), DRIP, return of capital, internal transfers, symbol changes and journals carry cost; transfers to and
