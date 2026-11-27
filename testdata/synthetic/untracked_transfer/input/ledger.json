@@ -1,0 +1,9 @@
+{
+  "_comment": "Synthetic (D-20). A sends its 10 S1 to an untracked account (market value 300) and gets them back later (market value 350): flows, not trades (D-23). S2 arrives in kind without a broker value.",
+  "transactions": [
+    {"id": "t1", "account": "A", "type": "BUY", "date": "2025-01-10", "security": "S1", "quantity": "10", "price": "20", "net_amount": "-200", "currency": "CAD"},
+    {"id": "t2", "account": "A", "type": "TRANSFER_OUT", "date": "2025-02-10", "security": "S1", "quantity": "10", "gross_amount": "-300", "net_amount": "0", "currency": "CAD"},
+    {"id": "t3", "account": "A", "type": "TRANSFER_IN", "date": "2025-05-12", "security": "S1", "quantity": "10", "gross_amount": "350", "net_amount": "0", "currency": "CAD"},
+    {"id": "t4", "account": "A", "type": "TRANSFER_IN", "date": "2025-06-02", "security": "S2", "quantity": "5", "net_amount": "0", "currency": "USD"}
+  ]
+}

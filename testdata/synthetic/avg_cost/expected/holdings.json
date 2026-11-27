@@ -1,0 +1,17 @@
+{
+  "_comment": "Worked by hand (specs/calculations.md). S1: 1005 + 605 = 1610 for 150; selling 60 removes 644, realized 900 - 5 - 644 = 251; DRIP +18 -> 984 for 91; split x2 -> 182; return of capital -> 974.90, avg 5.35659341 (8 dp). S2: 1004.95 USD = 1406.93 CAD at 1.40 for 10; +10 split delta; selling 5 removes 251.2375 USD / 351.7325 CAD, realized 300 - 4.95 - 251.2375 = 43.8125 USD and 405 - 6.6825 - 351.7325 = 46.585 CAD at 1.35. S3: USD without a rate -> CAD unknown. S4: the same-day buy goes before the sale.",
+  "positions": [
+    {"account": "A", "security": "S1", "quantity": "182", "book_currency": "CAD", "cost": "974.90", "cost_cad": "974.90", "avg_cost": "5.35659341", "avg_cost_cad": "5.35659341",
+     "realized": "251", "realized_cad": "251", "income": {"CAD": "18"}, "income_cad": "18", "flags": []},
+    {"account": "A", "security": "S2", "quantity": "15", "book_currency": "USD", "cost": "753.7125", "cost_cad": "1055.1975", "avg_cost": "50.2475", "avg_cost_cad": "70.3465",
+     "realized": "43.8125", "realized_cad": "46.585", "income": {}, "income_cad": "0", "flags": []},
+    {"account": "A", "security": "S3", "quantity": "10", "book_currency": "USD", "cost": "200", "cost_cad": null, "avg_cost": "20", "avg_cost_cad": null,
+     "realized": "0", "realized_cad": "0", "income": {"USD": "1.7"}, "income_cad": null, "flags": [{"code": "fx_missing", "date": "2025-06-02", "tx": "t14"}]},
+    {"account": "A", "security": "S4", "quantity": "0", "book_currency": "CAD", "cost": "0", "cost_cad": "0", "avg_cost": null, "avg_cost_cad": null,
+     "realized": "5", "realized_cad": "5", "income": {}, "income_cad": "0", "flags": []}
+  ],
+  "cash": [
+    {"account": "A", "currency": "CAD", "amount": "1499.10"},
+    {"account": "A", "currency": "USD", "amount": "1091.80"}
+  ]
+}

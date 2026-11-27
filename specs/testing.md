@@ -34,10 +34,10 @@ Purpose: prove the numbers are right, not just that screens render (PRD amendmen
 | wealthsimple/synthetic_activities | multi-account file, executed/received/effective date rules, FX rate in description, NRT linking (single, ratio, pro rata to the cent, TSX excluded, unlinked), USD sub-account, fee refund and reversal pair, in-kind transfer value, SUBDIVISION delta, NAME_CHANGE symbol change and split legs, robo detection, overlapping file with equal natural keys |
 | snapshots/questrade_summary, snapshots/wealthsimple_holdings | Balances/Positions parsing, footer as-of, untracked accounts skipped, cash lines |
 | synthetic/duplicates | commit (D-8, D-28, D-37): overlapping re-import, two legitimate identical trades, a third copy that is new, withholding linked through a duplicate dividend, an FX pair, a re-import where every row is a duplicate |
-| synthetic/avg_cost | buys, partial sell, DRIP, split as ratio and as delta, return of capital -> qty, avg cost, realized gain |
+| synthetic/avg_cost | buys, partial sell, DRIP, split as ratio and as delta, return of capital, USD with and without a broker rate, same-day buy and sell -> qty, avg cost, realized gain, income, cash |
 | synthetic/twr_flows | deposits/withdrawals mid-period, known daily values -> TWR to 1e-6 |
-| synthetic/internal_transfer | transfer between two tracked accounts detected from the description, paired across files -> all-accounts TWR unchanged, subtotals see flows |
-| synthetic/untracked_transfer | in-kind out and back in from an untracked account -> flows at market value, new average cost (D-23) |
+| synthetic/internal_transfer | in-kind and cash transfer between two tracked accounts (D-27), receiving leg dated first -> cost carried (M3); all-accounts TWR unchanged, subtotals see flows (M5) |
+| synthetic/untracked_transfer | in-kind out and back in from an untracked account -> flows at market value, new average cost (D-23); a transfer in without a value -> cost unknown (D-38) |
 | synthetic/xirr | textbook cash flows with known IRR |
 | synthetic/duplicates | re-import overlap and two legitimate identical trades (D-8) |
 | synthetic/stale_data | missing price/FX -> flags, no zeros |

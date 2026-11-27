@@ -2,6 +2,13 @@
 
 Releases are tagged `ver-x.y.z` on `main` (`CONTRIBUTING.md`). Newest first.
 
+## Unreleased
+- Ledger replay (`services/api/internal/calc`, #22): quantity, average cost and book value per account and security
+  in the book currency and in CAD, realized gain, income net of withholding, and cash per currency. Splits (ratio
+  and delta), DRIP, return of capital, internal transfers, symbol changes and journals carry cost; transfers to and
+  from untracked accounts are valued at the broker's market value (D-23). Unknown FX or cost and sales without
+  history are flagged, never 0. Golden ledgers `synthetic/avg_cost`, `internal_transfer`, `untracked_transfer`.
+
 ## ver-0.2.0 (2026-11-27)
 M2 Imports: AC-2, AC-3 and AC-4 pass in the browser (Chromium, Firefox, WebKit).
 - Fix (Questrade, #58): dividend rows name TSX securities without `.TO` (plain, dot-prefixed or as units). They

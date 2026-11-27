@@ -1,0 +1,13 @@
+{
+  "_comment": "The cost moves with the shares (carried, calculations.md): A keeps 6 at 120, B receives 4 at 80. No realized gain.",
+  "positions": [
+    {"account": "A", "security": "S1", "quantity": "6", "book_currency": "CAD", "cost": "120", "cost_cad": "120", "avg_cost": "20", "avg_cost_cad": "20",
+     "realized": "0", "realized_cad": "0", "income": {}, "income_cad": "0", "flags": []},
+    {"account": "B", "security": "S1", "quantity": "4", "book_currency": "CAD", "cost": "80", "cost_cad": "80", "avg_cost": "20", "avg_cost_cad": "20",
+     "realized": "0", "realized_cad": "0", "income": {}, "income_cad": "0", "flags": []}
+  ],
+  "cash": [
+    {"account": "A", "currency": "CAD", "amount": "300"},
+    {"account": "B", "currency": "CAD", "amount": "500"}
+  ]
+}
