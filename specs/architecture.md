@@ -84,7 +84,7 @@ M2 screens (hash routes `#/accounts`, `#/imports`, `#/imports/<id>`, so Caddy se
   silently. A refused commit (`unresolved_securities`) lists the rows and opens their fix. After commit each row
   shows inserted or duplicate, with the result counts.
 
-M3 screens (proposed, D-38; routes `#/holdings`, `#/securities/<id>`; nav gains "Holdings"):
+M3 screens (D-38; routes `#/holdings`, `#/securities/<id>`; nav gains "Holdings"):
 - Holdings: a scope picker (All accounts, Registered, Non-registered, one account) and a view switch "By account" /
   "By security".
   - By account: one section per account (name, type, broker; robo accounts labelled "Managed, account-level only").

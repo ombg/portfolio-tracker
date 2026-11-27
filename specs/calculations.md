@@ -31,7 +31,7 @@ Running state per (account, security): `qty`, `cost_native`, `cost_rc`.
 
 `avg = cost / qty`. Realized gain on SELL = proceeds - commission - q * avg (native and rc).
 
-Native means the position's **book currency**: the currency its acquisitions were paid in (proposed, D-38). It is
+Native means the position's **book currency**: the currency its acquisitions were paid in (D-38). It is
 usually the trading currency, but a US security bought in a CAD account (Wealthsimple settles in CAD) has book
 currency CAD. An amount in another currency than the book currency converts with the row's `fx_rate_to_cad`; without
 one the native cost becomes unknown (`fx_missing`) from that row on, quantity is still tracked. rc (CAD) cost: CAD
