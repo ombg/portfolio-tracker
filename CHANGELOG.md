@@ -3,6 +3,10 @@
 Releases are tagged `ver-x.y.z` on `main` (`CONTRIBUTING.md`). Newest first.
 
 ## Unreleased
+- Fix (Questrade, #58): dividend rows name TSX securities without `.TO` (plain, dot-prefixed or as units). They
+  now take the TSX listing the file's trades use; a CAD symbol the file does not explain is proposed on the TSX
+  for the user to confirm, never read as US. Before, these rows were silently resolved to US listings or were
+  `unknown_symbol` errors. The preview names the symbol a proposal replaces.
 - `make smoke-private` (#21, D-20): the parsers on the real exports in `data/`, in a container with `data/`
   read-only, no network and no database; prints only counts (rows per account and status, message codes,
   duplicates across files) with files and accounts numbered, never named. Tested on the synthetic fixtures,

@@ -16,7 +16,7 @@ including ones the user does not track) and any date range.
 | Transaction Date | string `YYYY-MM-DD hh:mm:ss AM` | trade_date (date part) |
 | Settlement Date | same | settle_date |
 | Action | string, may be blank | primary type signal |
-| Symbol | string, may be empty | ticker with `.TO` suffix for TSX, none for US; may be an internal code (letter + 6 digits, e.g. `H012345`) or a GIC code |
+| Symbol | string, may be empty | ticker with `.TO` suffix for TSX, none for US on trades; dividend rows drop the `.TO` (plain `QZGR`, or `.QZGR` on DIV rows, `SYNU.UN` for units); may be an internal code (letter + 6 digits, e.g. `H012345`) or a GIC code |
 | Description | string | fallback for symbol and type; holds share counts, account numbers, maturity data; kept in raw |
 | Quantity | decimal string | negative on sells and outgoing corporate-action legs |
 | Price | decimal string | per share; per-share rate on distributions |
@@ -66,7 +66,11 @@ All files go through the same duplicate rule (D-8): rows already in the ledger a
 rest are added (D-28). Rows of untracked accounts are skipped and counted (D-22).
 
 ## Symbol resolution
-1. Strip and upper-case; `QZGR.TO` -> symbol QZGR, exchange TSX; `AP.UN.TO` -> AP.UN, TSX; no suffix -> US.
+1. Strip and upper-case; `QZGR.TO` -> symbol QZGR, exchange TSX; `AP.UN.TO` -> AP.UN, TSX. Without `.TO` (dividend
+   rows), drop a leading `.`, then: the file names `<symbol>.TO` on any row -> that TSX listing (info
+   `tsx_from_file`); else a USD row without a period -> US; else a CAD row -> proposed on the TSX
+   (`proposed_security`), as the TSX security this file traded under the same name (matched as in step 3) or
+   else the symbol itself. A CAD row is never read as US by default (D-37). Anything else -> step 5.
 2. Look up `security_aliases` (broker questrade), then `security_symbols` valid on trade_date.
 3. Internal code (letter + 6 digits): a saved alias resolves it. Otherwise match the Description's security name
    against securities traded under a listed symbol in the same file (exact, or one name a prefix of the other, a

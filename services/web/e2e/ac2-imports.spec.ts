@@ -40,7 +40,8 @@ function rowOf(page: Page, rowNo: number): Locator {
   return page
     .getByRole("table", { name: "Import rows" })
     .getByRole("row")
-    .filter({ has: page.getByRole("cell", { name: String(rowNo), exact: true }).first() })
+    // The row number is the first cell; another cell (a quantity) may hold the same number.
+    .filter({ has: page.locator(":is(td, th):first-child", { hasText: new RegExp(`^${rowNo}$`) }) })
     .first();
 }
 
@@ -97,7 +98,7 @@ test("AC-2/AC-3: Questrade history is reviewed, corrected and committed", async 
   await signIn(page);
   await openPreview(page, "Questrade", `${QT}/activities.xlsx`);
   await expect(page.locator(".tag")).toHaveText("Needs review");
-  await expect(counts(page)).toHaveText("6 errors · 3 warnings · 21 ok · 4 skipped");
+  await expect(counts(page)).toHaveText("6 errors · 5 warnings · 23 ok · 4 skipped");
 
   // Errors block the commit and are named; warnings are visible before commit (NFR-4).
   await expect(page.getByText("6 rows need a fix or must be excluded")).toBeVisible();
@@ -105,18 +106,22 @@ test("AC-2/AC-3: Questrade history is reviewed, corrected and committed", async 
   await expect(rowOf(page, 17)).toContainText("no mapping for Fees and rebates / ADJ");
   await expect(rowOf(page, 8)).toContainText("differs from Net");
   await expect(rowOf(page, 13)).toContainText("broker code H000777 looks like ZZUS");
+  // TSX dividends without .TO: read from the file's trades, else proposed on the TSX (never US).
+  await expect(rowOf(page, 9)).toContainText(".QZGR read as QZGR.TO, traded in this file (row 3)");
+  await expect(rowOf(page, 39)).toContainText("QZGX → QZGR (TSX)?");
+  await expect(rowOf(page, 40)).toContainText("proposed as QZNT on the TSX");
 
   // Untracked accounts: link one number to the existing account without a number, track the other.
   const untracked = page.getByLabel("Untracked accounts");
   await untracked.getByLabel("Existing account for 90000004").selectOption({ label: "E2E QT RESP" });
   await untracked.getByRole("button", { name: "Link 90000004" }).click();
-  await expect(counts(page)).toHaveText("6 errors · 3 warnings · 24 ok · 1 skipped");
+  await expect(counts(page)).toHaveText("6 errors · 5 warnings · 26 ok · 1 skipped");
   await untracked.getByRole("button", { name: "Track this account 90000003" }).click();
   const form = page.getByRole("form", { name: "New account" });
   await expect(form.getByLabel("Account number")).toHaveValue("90000003");
   await expect(form.getByLabel("Account type")).toHaveValue("RRSP");
   await form.getByRole("button", { name: "Create account" }).click();
-  await expect(counts(page)).toHaveText("6 errors · 3 warnings · 25 ok");
+  await expect(counts(page)).toHaveText("6 errors · 5 warnings · 27 ok");
   await expect(page.getByLabel("Untracked accounts")).toHaveCount(0);
 
   // An invalid correction is refused with the reason and changes nothing.
@@ -127,31 +132,31 @@ test("AC-2/AC-3: Questrade history is reviewed, corrected and committed", async 
   await bad.getByRole("button", { name: "Save fix" }).click();
   await expect(bad.getByRole("alert")).toContainText("expected a listed symbol");
   await bad.getByRole("button", { name: "Cancel" }).click();
-  await expect(counts(page)).toHaveText("6 errors · 3 warnings · 25 ok");
+  await expect(counts(page)).toHaveText("6 errors · 5 warnings · 27 ok");
 
   // Unmapped actions and unknown broker codes; one code fix settles both legs of a journal pair.
-  await fix(page, 17, (f) => f.getByLabel("Transaction type").selectOption("FEE"), "5 errors · 3 warnings · 26 ok");
-  await fix(page, 34, (f) => f.getByLabel("Transaction type").selectOption("INTEREST"), "4 errors · 3 warnings · 27 ok");
+  await fix(page, 17, (f) => f.getByLabel("Transaction type").selectOption("FEE"), "5 errors · 5 warnings · 28 ok");
+  await fix(page, 34, (f) => f.getByLabel("Transaction type").selectOption("INTEREST"), "4 errors · 5 warnings · 29 ok");
   const symbol = (s: string) => async (f: Locator) => {
     await f.getByLabel("Symbol").fill(s);
     await f.getByLabel("Exchange").selectOption("TSX");
   };
-  await fix(page, 14, symbol("OLDN"), "3 errors · 3 warnings · 28 ok");
-  await fix(page, 27, symbol("SMGT"), "1 error · 3 warnings · 30 ok");
+  await fix(page, 14, symbol("OLDN"), "3 errors · 5 warnings · 30 ok");
+  await fix(page, 27, symbol("SMGT"), "1 error · 5 warnings · 32 ok");
   await expect(rowOf(page, 28)).toContainText("H000555 mapped to SMGT (TSX) by your rule");
 
   // The last error is left out; it can be brought back and left out again.
   await page.getByRole("button", { name: "Exclude row 29", exact: true }).click();
-  await expect(counts(page)).toHaveText("3 warnings · 30 ok · 1 excluded");
+  await expect(counts(page)).toHaveText("5 warnings · 32 ok · 1 excluded");
   await expect(page.getByRole("button", { name: "Commit…" })).toBeEnabled();
-  await expect(page.getByText("33 rows will be written to the ledger, 3 of them with warnings.")).toBeVisible();
+  await expect(page.getByText("37 rows will be written to the ledger, 5 of them with warnings.")).toBeVisible();
 
   await commit(
     page,
-    "Write 33 rows to the ledger, including 3 with warnings?",
-    "Committed: 33 added to the ledger, 0 already there (duplicates), 1 internal transfers linked.",
+    "Write 37 rows to the ledger, including 5 with warnings?",
+    "Committed: 37 added to the ledger, 0 already there (duplicates), 1 internal transfers linked.",
   );
-  await expect(counts(page)).toHaveText("33 inserted · 1 excluded");
+  await expect(counts(page)).toHaveText("37 inserted · 1 excluded");
   await expect(rowOf(page, 14).getByRole("cell").nth(1)).toHaveText("Inserted");
   await expect(rowOf(page, 29).getByRole("cell").nth(1)).toHaveText("Excluded");
   committedImport = page.url();

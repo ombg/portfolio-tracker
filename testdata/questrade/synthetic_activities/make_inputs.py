@@ -34,8 +34,9 @@ MAIN = [
     row("2025-01-03", "2025-01-03", "FXT", "", "CONVERSION - SYNTHETIC", Z, Z, "0.00", "0.00", "1400.00", "USD", TFSA, "FX conversion"),
     row("2025-02-10", "2025-02-11", "Sell", "QZGR.TO", "SYNTHETIC GROWTH ETF WE ACTED AS AGENT", "-40.00000000", "26.00000000", "1040.00", "-4.95", "1035.05", "CAD", TFSA, "Trades"),
     row("2025-02-10", "2025-02-11", "Sell", "ZZUS", "ZEDCO SYNTHETIC INC WE ACTED AS AGENT EXCHANGE RATE 1.38500000", "-5.00000000", "160.00000000", "800.00", "-4.95", "790.00", "USD", TFSA, "Trades"),
-    row("2025-03-31", "2025-03-31", "DIV", "QZGR.TO", "SYNTHETIC GROWTH ETF CASH DIV ON 60 SHS REC 03/14/25 PAY 03/31/25", Z, "0.12000000", "0.00", "0.00", "7.20", "CAD", TFSA, "Dividends"),
-    row("2025-06-30", "2025-06-30", "", "QZGR.TO", "SYNTHETIC GROWTH ETF DIST ON 60 SHS REC 06/13/25 PAY 06/30/25", Z, "0.10000000", "0.00", "0.00", "6.00", "CAD", TFSA, "Dividends"),
+    # Dividend rows drop the .TO that trades use: a leading dot (DIV) or a plain ticker (blank action), in CAD.
+    row("2025-03-31", "2025-03-31", "DIV", ".QZGR", "SYNTHETIC GROWTH ETF CASH DIV ON 60 SHS REC 03/14/25 PAY 03/31/25", Z, "0.12000000", "0.00", "0.00", "7.20", "CAD", TFSA, "Dividends"),
+    row("2025-06-30", "2025-06-30", "", "QZGR", "SYNTHETIC GROWTH ETF DIST ON 60 SHS REC 06/13/25 PAY 06/30/25", Z, "0.10000000", "0.00", "0.00", "6.00", "CAD", TFSA, "Dividends"),
     row("2025-06-16", "2025-06-16", "DIV", "ZZUS", "ZEDCO SYNTHETIC INC CASH DIV ON 5 SHS REC 06/02/25 PAY 06/16/25 NON-RES TAX WITHHELD", Z, "0.40000000", "0.00", "0.00", "2.00", "USD", TFSA, "Dividends"),
     row("2025-06-16", "2025-06-16", "", "ZZUS", "ZEDCO SYNTHETIC INC NON-RES TAX WITHHELD REC 06/02/25 PAY 06/16/25", Z, Z, "0.00", "0.00", "-0.30", "USD", TFSA, "Dividends"),
     row("2025-07-08", "2025-07-08", "DIS", "H000777", "ZEDCO SYNTHETIC INC STK SPLIT ON 5 SHS REC 07/01/25 PAY 07/08/25", "5.00000000", Z, "0.00", "0.00", "0.00", "USD", TFSA, "Dividends"),
@@ -62,6 +63,12 @@ MAIN = [
     row("2025-10-15", "2025-10-15", "XYZ", "", "SYNTHETIC UNKNOWN ACTIVITY", Z, Z, "0.00", "0.00", "1.00", "CAD", TFSA, "Other"),
     [""] * len(HEADER),  # the real exports contain empty rows; they are not staged
     row("2025-08-01", "2025-08-01", "FXT", "", "CONVERSION - SYNTHETIC", Z, Z, "0.00", "0.00", "-100.00", "CAD", TFSA, "FX conversion"),
+    # TSX units: traded as SYNU.UN.TO, distributed as SYNU.UN.
+    row("2025-04-10", "2025-04-11", "Buy", "SYNU.UN.TO", "SYNTHETIC UNITS REIT WE ACTED AS AGENT", "20.00000000", "10.00000000", "-200.00", "-4.95", "-204.95", "CAD", TFSA, "Trades"),
+    row("2025-05-15", "2025-05-15", "", "SYNU.UN", "SYNTHETIC UNITS REIT DIST ON 20 SHS REC 04/30/25 PAY 05/15/25", Z, "0.05000000", "0.00", "0.00", "1.00", "CAD", TFSA, "Dividends"),
+    # CAD dividends whose ticker the file never trades: one named like a TSX security of the file, one unknown.
+    row("2025-09-30", "2025-09-30", "", "QZGX", "SYNTHETIC GROWTH ETF CASH DIV ON 60 SHS REC 09/12/25 PAY 09/30/25", Z, "0.13000000", "0.00", "0.00", "7.80", "CAD", TFSA, "Dividends"),
+    row("2025-10-31", "2025-10-31", "DIV", "QZNT", "SYNTHETIC NORTHERN TRUST CASH DIV ON 50 SHS REC 10/15/25 PAY 10/31/25", Z, "0.10000000", "0.00", "0.00", "5.00", "CAD", TFSA, "Dividends"),
 ]
 
 # An older export of the same login that overlaps the main file (D-28): its rows 3 and 4 equal main rows 2 and 3.

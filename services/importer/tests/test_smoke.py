@@ -60,8 +60,8 @@ def test_counts(root: Path):
     assert status == 0, text
     assert text.splitlines() == [
         "questrade: 3 tracked accounts, 2 files",
-        "  file 1 of 2: 34 rows; 27 would be added, 0 duplicates of earlier files",
-        "    account 1 (TFSA): ok 17, warning 3, error 4",
+        "  file 1 of 2: 38 rows; 31 would be added, 0 duplicates of earlier files",
+        "    account 1 (TFSA): ok 19, warning 5, error 4",
         "    account 2 (FHSA): ok 4",
         "    account 3 (RESP): ok 3",
         "    unmapped rows: error 2",
@@ -69,12 +69,12 @@ def test_counts(root: Path):
         "    error unknown_broker_code: 4",
         "    error unmapped_action: 2",
         "    warning net_mismatch: 1",
-        "    warning proposed_security: 1",
+        "    warning proposed_security: 3",
         "    warning unpaired_fx_leg: 1",
         # The older export overlaps: 2 of its 3 rows are already stored (D-8).
         "  file 2 of 2: 3 rows; 1 would be added, 2 duplicates of earlier files",
         "    account 1 (TFSA): ok 3",
-        "  questrade total: a commit of every file in this order would hold 28 ledger rows",
+        "  questrade total: a commit of every file in this order would hold 32 ledger rows",
         "",
         "wealthsimple: 2 tracked accounts, 2 files",
         "  file 1 of 2: 38 rows; 36 would be added, 0 duplicates of earlier files",
@@ -142,7 +142,7 @@ def test_no_accounts_md_counts_everything_as_untracked(root: Path):
     status, text = report(root)
     assert status == 0
     assert text.startswith("accounts.md: missing or without accounts")
-    assert "    untracked accounts: skipped 34" in text
+    assert "    untracked accounts: skipped 38" in text
 
 
 def test_nothing_found(tmp_path: Path):
