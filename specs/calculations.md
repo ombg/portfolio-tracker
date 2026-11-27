@@ -1,7 +1,10 @@
 # Calculations
 
 Implements: FR-7, FR-8, FR-9, FR-10, FR-11, NFR-2, NFR-4. Decisions: D-4, D-5, D-6, D-9, D-10, D-17.
-All calculations live in `services/api/internal/calc` and run on `v_ledger` in (trade_date, id) order.
+All calculations live in `services/api/internal/calc` and run on `v_ledger` in trade-date order; within a day, rows
+that add shares (BUY, DRIP, TRANSFER_IN, splits and positive legs) go before rows that remove them, so a same-day
+buy and sell never looks like a sale without history; otherwise the source order. The receiving leg of a carried
+group (internal transfer, symbol change, journal) waits for its giving leg, whatever their dates.
 Every result carries `basis` metadata (price source + time, FX source + time, flags) so the UI can show it (NFR-2).
 
 ## Reporting scopes (PRD 4.1)
@@ -45,7 +48,8 @@ Internal in-kind transfer carries cost from the source account. If qty would go 
 Aggregate security view: sum qty and cost across accounts; `avg = sum cost / sum qty`, labelled informational.
 
 ## Cash
-Per account and currency, the sum of `net_amount` over `v_ledger` (in-kind transfers carry 0). The cash effects are: BUY -(gross+commission), SELL +net, DIVIDEND/INTEREST +net,
+Per account and currency, the sum of `net_amount` over `v_ledger`; a currency gets a cash line once a row moves
+cash in it (in-kind transfers carry 0). The cash effects are: BUY -(gross+commission), SELL +net, DIVIDEND/INTEREST +net,
 WITHHOLDING_TAX -, FEE - (a negative fee, i.e. a refund, adds cash), DEPOSIT +, WITHDRAWAL -, TRANSFER cash legs +/-, FX_CONVERSION legs in their own
 currency. When the broker provides `net_amount`, it is authoritative for cash.
 

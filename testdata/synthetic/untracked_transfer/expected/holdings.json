@@ -1,0 +1,12 @@
+{
+  "_comment": "The shares come back at a new average cost of 35 (the broker may still show 20; D-23). Leaving removes cost at average with no realized gain. S2's cost is unknown until M4 can value it on its date (D-38), never 0.",
+  "positions": [
+    {"account": "A", "security": "S1", "quantity": "10", "book_currency": "CAD", "cost": "350", "cost_cad": "350", "avg_cost": "35", "avg_cost_cad": "35",
+     "realized": "0", "realized_cad": "0", "income": {}, "income_cad": "0", "flags": []},
+    {"account": "A", "security": "S2", "quantity": "5", "book_currency": "USD", "cost": null, "cost_cad": null, "avg_cost": null, "avg_cost_cad": null,
+     "realized": "0", "realized_cad": "0", "income": {}, "income_cad": "0", "flags": [{"code": "cost_unknown", "date": "2025-06-02", "tx": "t4"}]}
+  ],
+  "cash": [
+    {"account": "A", "currency": "CAD", "amount": "-200"}
+  ]
+}
