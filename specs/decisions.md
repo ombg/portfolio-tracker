@@ -1,6 +1,6 @@
 # Decisions and PRD review
 
-Status: proposed 2026-11-19; Oliver's answers folded in on 2026-11-20, 2026-11-21, 2026-11-23, 2026-11-24 and 2026-11-25; D-35 confirmed 2026-11-26; D-36 and D-37 proposed 2026-11-26.
+Status: proposed 2026-11-19; Oliver's answers folded in on 2026-11-20, 2026-11-21, 2026-11-23, 2026-11-24 and 2026-11-25; D-35 confirmed 2026-11-26; D-36 and D-37 confirmed 2026-11-27.
 Source of requirements: `chatgpt/docs/portfolio-tracker-requirements.md` (the PRD).
 This file records (a) where the PRD needs clarification or a change and (b) every design decision taken to satisfy it.
 Each decision has an ID; specs reference them as `D-n`. Superseded decisions stay here, marked as such.
@@ -293,7 +293,7 @@ Confirmed by Oliver 2026-11-26 (M2, issue #13).
   re-importing a file does not bring back rows the user voided.
 
 ### D-36 Preview corrections: rules, exclusions and account links
-Proposed 2026-11-26 (M2, issue #17); awaiting Oliver's confirmation (Q-19).
+Proposed 2026-11-26 (M2, issue #17); confirmed by Oliver 2026-11-27 (Q-19).
 - **Fixes are rules, not row patches.** What a user fixes in the preview is almost always a fact about the broker's
   file that recurs: an action the parser has no mapping for, or a symbol or broker code it cannot place. Both are
   saved per user and broker in `imports.import_rules` and the batch is parsed again from the stored original, so
@@ -319,7 +319,7 @@ Proposed 2026-11-26 (M2, issue #17); awaiting Oliver's confirmation (Q-19).
   preflight the API never grants. Every other write still has to be `application/json` (D-33).
 
 ### D-37 Commit: duplicates, securities and links
-Proposed 2026-11-26 (M2, issue #18); awaiting Oliver's confirmation (Q-20).
+Proposed 2026-11-26 (M2, issue #18); confirmed by Oliver 2026-11-27 (Q-20).
 - **One transaction, all or nothing, one at a time.** `POST /api/imports/{id}/commit` inserts the batch's `ok` and
   `warning` rows under a database-wide advisory lock (duplicate counts and the shared security master must not move
   underneath it). Rows with errors block it (fix or exclude, D-36); so does a security it cannot place, and then
@@ -358,8 +358,7 @@ Proposed 2026-11-26 (M2, issue #18); awaiting Oliver's confirmation (Q-20).
 
 ## Open questions
 
-- **Q-19** Confirm D-36 (preview corrections as rules; aliases written at commit; exclusion as the only row edit).
-- **Q-20** Confirm D-37 (commit rules; unclassified securities; withholding recorded on dividends).
+None.
 
 Closed: Q-15 (GitHub push access) and Q-17 (D-33 confirmation), 2026-11-24; Q-18 (D-35
-confirmation), 2026-11-26.
+confirmation), 2026-11-26; Q-19 (D-36) and Q-20 (D-37), 2026-11-27.

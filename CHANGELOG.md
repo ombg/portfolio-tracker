@@ -3,12 +3,20 @@
 Releases are tagged `ver-x.y.z` on `main` (`CONTRIBUTING.md`). Newest first.
 
 ## Unreleased
-- Import commit (D-37, proposed): `POST /api/imports/{id}/commit` writes a batch into the ledger in one
+- Web: Imports page (FR-3, #19). Upload a Questrade or Wealthsimple export (optionally for one account); preview
+  every row with its status, messages and source row, filtered by status; fix an unmapped action or an unknown
+  security inline (saved as a rule, D-36), exclude or include rows, track an untracked account number with a
+  prefilled account form or link it to an existing account; commit after a confirmation that states how many rows
+  (and how many with warnings) reach the ledger, or discard. A refused commit lists the unplaceable securities.
+  Committed rows show inserted or duplicate. Import history with status and counts. Hash routes (`#/accounts`,
+  `#/imports`, `#/imports/<id>`).
+- D-36 and D-37 confirmed (Q-19, Q-20).
+- Import commit (D-37): `POST /api/imports/{id}/commit` writes a batch into the ledger in one
   transaction with the row duplicate rule (D-8), creates missing securities (unclassified until M4), symbols and
   aliases, carries symbol changes onto the same security, groups FX/journal/split legs, links withholding to its
   dividend (also across files), and pairs internal transfers across accounts and files (D-27). Rows in the preview
   show whether they were inserted or duplicates. Migration 000005. Golden fixture `testdata/synthetic/duplicates`.
-- Import API (FR-3, D-36, proposed): `POST /api/imports` streams the upload to the importer; `GET /api/imports`
+- Import API (FR-3, D-36): `POST /api/imports` streams the upload to the importer; `GET /api/imports`
   (history) and `GET /api/imports/{id}` (preview with rows, untracked accounts and `can_commit`);
   `PATCH /api/imports/{id}/rows/{row}` fixes an action or a symbol (saved as import rules for later files),
   excludes a row, or links an untracked account number to an existing account; re-parse and discard.

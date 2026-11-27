@@ -29,18 +29,30 @@ const FIELD_LABELS: Record<string, string> = {
 
 // One form for create and edit (FR-2). The server derives is_registered from the type except for OTHER and the
 // analysis level from management (D-14); the form only offers the choices the server accepts.
-export function AccountForm({ account, onDone }: { account?: Account; onDone: () => void }) {
+// `initial` prefills a new account (the import preview proposes one for an untracked account number, D-22);
+// `onSaved` receives the saved account before `onDone`.
+export function AccountForm({
+  account,
+  initial,
+  onDone,
+  onSaved,
+}: {
+  account?: Account;
+  initial?: AccountInput;
+  onDone: () => void;
+  onSaved?: (account: Account) => void;
+}) {
   const qc = useQueryClient();
   const brokers = useQuery({ queryKey: ["brokers"], queryFn: api.brokers });
   const currencies = useQuery({ queryKey: ["currencies"], queryFn: api.currencies });
 
-  const [broker, setBroker] = useState(account?.broker.code ?? "");
-  const [name, setName] = useState(account?.name ?? "");
-  const [type, setType] = useState<AccountType>(account?.type ?? "TFSA");
+  const [broker, setBroker] = useState(account?.broker.code ?? initial?.broker ?? "");
+  const [name, setName] = useState(account?.name ?? initial?.name ?? "");
+  const [type, setType] = useState<AccountType>(account?.type ?? initial?.type ?? "TFSA");
   const [isRegistered, setIsRegistered] = useState(account?.is_registered ?? false);
-  const [currency, setCurrency] = useState(account?.base_currency ?? "CAD");
-  const [number, setNumber] = useState(account?.external_number ?? "");
-  const [management, setManagement] = useState<Management>(account?.management ?? "self_directed");
+  const [currency, setCurrency] = useState(account?.base_currency ?? initial?.base_currency ?? "CAD");
+  const [number, setNumber] = useState(account?.external_number ?? initial?.external_number ?? "");
+  const [management, setManagement] = useState<Management>(account?.management ?? initial?.management ?? "self_directed");
   const [status, setStatus] = useState<AccountStatus>(account?.status ?? "open");
   const [openedOn, setOpenedOn] = useState(account?.opened_on ?? "");
   const [closedOn, setClosedOn] = useState(account?.closed_on ?? "");
@@ -61,8 +73,9 @@ export function AccountForm({ account, onDone }: { account?: Account; onDone: ()
       if (!account) return api.createAccount({ ...input, broker });
       return api.updateAccount(account.id, { ...input, status, closed_on: status === "open" ? null : closedOn || null });
     },
-    onSuccess: () => {
+    onSuccess: (saved) => {
       qc.invalidateQueries({ queryKey: ["accounts"] });
+      onSaved?.(saved);
       onDone();
     },
   });
