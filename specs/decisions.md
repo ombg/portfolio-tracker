@@ -1,6 +1,6 @@
 # Decisions and PRD review
 
-Status: proposed 2026-11-19; Oliver's answers folded in on 2026-11-20, 2026-11-21, 2026-11-23, 2026-11-24 and 2026-11-25; D-35 confirmed 2026-11-26.
+Status: proposed 2026-11-19; Oliver's answers folded in on 2026-11-20, 2026-11-21, 2026-11-23, 2026-11-24 and 2026-11-25; D-35 confirmed 2026-11-26; D-36 proposed 2026-11-26.
 Source of requirements: `chatgpt/docs/portfolio-tracker-requirements.md` (the PRD).
 This file records (a) where the PRD needs clarification or a change and (b) every design decision taken to satisfy it.
 Each decision has an ID; specs reference them as `D-n`. Superseded decisions stay here, marked as such.
@@ -292,7 +292,35 @@ Confirmed by Oliver 2026-11-26 (M2, issue #13).
 - **Duplicates count stored rows.** The row duplicate rule (D-8) counts `core.transactions`, not `v_ledger`, so
   re-importing a file does not bring back rows the user voided.
 
+### D-36 Preview corrections: rules, exclusions and account links
+Proposed 2026-11-26 (M2, issue #17); awaiting Oliver's confirmation (Q-19).
+- **Fixes are rules, not row patches.** What a user fixes in the preview is almost always a fact about the broker's
+  file that recurs: an action the parser has no mapping for, or a symbol or broker code it cannot place. Both are
+  saved per user and broker in `imports.import_rules` and the batch is parsed again from the stored original, so
+  every row with the same action or code changes at once, and later files need no fix. An action rule
+  (`"Activity Type|Action"` for Questrade, `"activity_type|activity_sub_type"` for Wealthsimple -> ledger type) is
+  used only where the parser has no mapping of its own; a symbol rule (file symbol or code -> symbol + exchange)
+  wins over an alias, never applies to GIC codes (D-26), and is shown on the row (`action_rule`, `symbol_rule`).
+  Rules can be changed, not deleted (D-35: nobody deletes); they never change committed rows (FR-3 item 8).
+- **Aliases follow at commit.** A broker code's rule names a listing, not a security id; the security may not exist
+  before the first commit. Commit (#18) resolves the listing against the security master and then writes the
+  user's `security_aliases` row, so `security_aliases` stays the commit-time source of truth.
+- **Exclusion** is the only per-row edit (`import_rows.user_edits = {"excluded": true}`); an excluded row keeps its
+  messages, does not block commit and can be taken back in. Skipped rows (untracked or other accounts) cannot be
+  excluded.
+- **Untracked accounts.** The preview lists each untracked account number with the importer's proposal. The user
+  either creates the account (accounts API, number filled in) and asks for a re-parse, or links the number to an
+  existing account that has none (`PATCH` with `account_id`; an account with another number is refused, not
+  overwritten). The number is stored on the account, so every later file finds it.
+- **Write paths (D-35).** Rules and row edits are written by the importer, which re-validates; portfolio-api only
+  checks the session and the batch, sets the account number and discards batches.
+- **Upload CSRF.** Uploads are `multipart/form-data`, which a cross-site form can send. `POST /api/imports` must
+  carry `X-Requested-With: portfolio-tracker`: forms cannot set headers and a cross-site fetch with one needs a CORS
+  preflight the API never grants. Every other write still has to be `application/json` (D-33).
+
 ## Open questions
 
-None open. Closed: Q-15 (GitHub push access) and Q-17 (D-33 confirmation), 2026-11-24; Q-18 (D-35
+- **Q-19** Confirm D-36 (preview corrections as rules; aliases written at commit; exclusion as the only row edit).
+
+Closed: Q-15 (GitHub push access) and Q-17 (D-33 confirmation), 2026-11-24; Q-18 (D-35
 confirmation), 2026-11-26.

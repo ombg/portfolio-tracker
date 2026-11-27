@@ -126,13 +126,17 @@ func (a *authHandlers) requireUser(next http.Handler) http.Handler {
 // requireJSONForWrites rejects state-changing requests that are not application/json.
 // Browsers cannot send that content type cross-site without a CORS preflight, which this
 // API never grants, so together with SameSite=Lax cookies it blocks CSRF (D-33).
+// File uploads are multipart/form-data, which a cross-site form can send, so they must also
+// carry UploadHeader, which no form can set and no cross-site fetch can send unpreflighted (D-36).
 func requireJSONForWrites(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet, http.MethodHead, http.MethodOptions:
 		default:
 			mt, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
-			if err != nil || mt != "application/json" {
+			upload := r.Method == http.MethodPost && r.URL.Path == "/api/imports" && mt == "multipart/form-data" &&
+				r.Header.Get(UploadHeader) == UploadHeaderValue
+			if err != nil || (mt != "application/json" && !upload) {
 				writeError(w, http.StatusUnsupportedMediaType, "unsupported_media_type", "requests must be application/json")
 				return
 			}

@@ -52,7 +52,7 @@ fall back to rule 3. In the real exports the description date is the effective d
 | LegacyCorporateAction | NAME_CHANGE, a +n / -n pair with two different symbols | SYMBOL_CHANGE | one security, new row in `security_symbols` from that date; quantity and cost carry over |
 | LegacyCorporateAction | NAME_CHANGE, same symbol, "Corrected quantity" deltas | SPLIT, one row per delta | e.g. a reverse split shows as +a and -b on one day; the day's legs share a `split` group and their deltas add up |
 | LegacyCorporateAction | NAME_CHANGE legs that are neither | error row | `unrecognised_name_change` |
-| anything else | | error row | user maps it in preview; mapping saved as an import rule |
+| anything else | | error row | user maps it in preview; mapping saved as an action rule keyed `activity_type|activity_sub_type` (D-36) |
 
 Corporate-action rows have no currency; they move no cash and take the sub-account's currency (the `account_id`
 suffix). Trades: quantity = abs(quantity), price = unit_price, commission = abs(commission); warnings
@@ -79,7 +79,8 @@ TSX suffixes (`ZUAG.F`), and the same company with and without `.TO` across a sy
    listing; if it is traded in CAD without one -> TSX (Wealthsimple states the rate whenever a US listing settles
    in CAD); otherwise the exchange is left empty and resolved at commit against the security master (both
    candidates, the one whose provider name matches `name`). The security name is the `name` column.
-3. Ambiguous or unknown -> warning or error in preview; the user's choice is saved as a `security_aliases` row.
+3. Ambiguous or unknown -> warning or error in preview; the user's choice is saved as a symbol rule (D-36), which
+   also settles an empty exchange from rule 2.
 
 ## Account resolution
 `account_id` matches a tracked account, compared without the trailing currency code on either side (`AB12CD345`,

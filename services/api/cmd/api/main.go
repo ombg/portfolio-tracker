@@ -16,6 +16,8 @@ import (
 	"github.com/ombg/portfolio-tracker/services/api/internal/config"
 	"github.com/ombg/portfolio-tracker/services/api/internal/db"
 	"github.com/ombg/portfolio-tracker/services/api/internal/httpapi"
+	"github.com/ombg/portfolio-tracker/services/api/internal/importer"
+	"github.com/ombg/portfolio-tracker/services/api/internal/imports"
 )
 
 func main() {
@@ -54,11 +56,18 @@ func run() error {
 		return err
 	}
 
+	var imp *importer.Client
+	if cfg.ServiceToken != "" {
+		imp = importer.New(cfg.ImporterURL, cfg.ServiceToken)
+	} else {
+		slog.Warn("SERVICE_TOKEN is not set: uploads and import corrections are unavailable")
+	}
+
 	srv := &http.Server{
 		Addr: cfg.ListenAddr,
 		Handler: httpapi.NewRouter(httpapi.Deps{
 			DB: pool, Auth: auth.NewStore(pool), Signer: signer, CookieSecure: cfg.CookieSecure,
-			Accounts: &accounts.Store{Pool: pool},
+			Accounts: &accounts.Store{Pool: pool}, Imports: &imports.Store{Pool: pool}, Importer: imp,
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 	}

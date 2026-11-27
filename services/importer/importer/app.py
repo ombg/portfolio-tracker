@@ -11,16 +11,32 @@ from fastapi import Depends, FastAPI, File, Form, Header, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, ConfigDict
 
 from . import db
 from .config import Settings
-from .imports import ImportError_, Upload, import_file
+from .imports import ImportError_, RowEdit, Upload, edit_row, import_file, reparse
 from .parsers import default_parsers
 from .parsers.base import Parser
 
 
 def error(status: int, code: str, message: str, **extra: object) -> JSONResponse:
     return JSONResponse({"error": code, "message": message, **extra}, status_code=status)
+
+
+class SecurityIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    symbol: str
+    exchange: str
+
+
+class RowEditIn(BaseModel):
+    """PATCH body: any of the three fixes (D-36)."""
+
+    model_config = ConfigDict(extra="forbid")
+    type: str | None = None
+    security: SecurityIn | None = None
+    excluded: bool | None = None
 
 
 def create_app(settings: Settings | None = None, parsers: dict[str, Parser] | None = None) -> FastAPI:
@@ -67,6 +83,20 @@ def create_app(settings: Settings | None = None, parsers: dict[str, Parser] | No
             filename=file.filename or "upload", media_type=file.content_type or "application/octet-stream", data=data,
         )
         return await run_in_threadpool(import_file, settings, parser, up)
+
+    @app.post("/internal/imports/{batch_id}/reparse", dependencies=[Depends(require_service)])
+    async def reparse_import(batch_id: UUID, x_user_id: Annotated[UUID, Header()]) -> dict:
+        return await run_in_threadpool(reparse, settings, parsers, x_user_id, batch_id)
+
+    @app.patch("/internal/imports/{batch_id}/rows/{row_no}", dependencies=[Depends(require_service)])
+    async def patch_row(batch_id: UUID, row_no: int, body: RowEditIn, x_user_id: Annotated[UUID, Header()]) -> dict:
+        if body.type is None and body.security is None and body.excluded is None:
+            raise ImportError_(400, "bad_request", "nothing to change: give type, security or excluded")
+        edit = RowEdit(
+            type=body.type, excluded=body.excluded,
+            security=(body.security.symbol, body.security.exchange) if body.security else None,
+        )
+        return await run_in_threadpool(edit_row, settings, parsers, x_user_id, batch_id, row_no, edit)
 
     return app
 

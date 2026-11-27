@@ -92,3 +92,26 @@ def test_upload_with_the_real_parser(settings, seeded, owner):
     # User A tracks only the FHSA (SY12AB346): row 31 is staged, the other 37 rows are skipped.
     assert res.json()["counts"] == {"ok": 1, "skipped": 37}
     assert res.json()["status"] == "parsed"
+
+
+def test_rules_map_unmapped_actions_and_unknown_listings():
+    """D-36: an action rule fills a gap in the mapping table; a symbol rule settles a listing the file leaves open."""
+    plain = parse("activities.csv")
+    unmapped = next(r for r in plain if any(m["code"] == "unmapped_action" for m in r.messages))
+    unlisted = next(r for r in plain if r.normalized and (r.normalized.get("security") or {}).get("symbol")
+                    and r.normalized["security"]["exchange"] is None)
+    parser = WealthsimpleParser()
+    action, symbol = parser.rule_keys(unmapped.raw).action, parser.rule_keys(unlisted.raw).symbol
+    ctx = replace(load_context(FIXTURE), action_rules={action: "FEE"}, symbol_rules={symbol: ("QZRL", "NEO")})
+    ruled = {r.row_no: r for r in parser.parse((FIXTURE / "input" / "activities.csv").read_bytes(), "a.csv", ctx)}
+
+    r = ruled[unmapped.row_no]
+    assert r.status == "ok" and r.normalized["type"] == "FEE" and [m["code"] for m in r.messages] == ["action_rule"]
+    sec = ruled[unlisted.row_no].normalized["security"]
+    assert (sec["symbol"], sec["exchange"], sec["trading_currency"]) == ("QZRL", "NEO", "CAD")
+    assert "symbol_rule" in [m["code"] for m in ruled[unlisted.row_no].messages]
+    # Rows with neither the action nor the symbol do not change.
+    for p in plain:
+        if p.row_no != unmapped.row_no and p.raw.get("symbol") != unlisted.raw["symbol"]:
+            r = ruled[p.row_no]
+            assert (r.status, r.normalized, r.messages) == (p.status, p.normalized, p.messages), p.row_no

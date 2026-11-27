@@ -206,6 +206,17 @@ type ImportsImportRow struct {
 	UserEdits  []byte
 }
 
+type ImportsImportRule struct {
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	BrokerID  uuid.UUID
+	Kind      string
+	SourceKey string
+	Target    []byte
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
 type ImportsSourceFile struct {
 	ID           uuid.UUID
 	UserID       uuid.UUID

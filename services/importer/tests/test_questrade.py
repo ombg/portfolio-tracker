@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import re
 import uuid
+from dataclasses import replace
 
 import pytest
 
@@ -18,8 +19,8 @@ from .golden import expected as golden_expected
 FIXTURE = TESTDATA / "questrade" / "synthetic_activities"
 
 
-def context(**over) -> ParseContext:
-    return load_context(FIXTURE, over.get("target_account_id"))
+def context(target_account_id=None, **over) -> ParseContext:
+    return replace(load_context(FIXTURE, target_account_id), **over)
 
 
 def parse(name: str, **ctx):
@@ -124,3 +125,18 @@ def test_upload_with_the_real_parser(settings, seeded, owner):
                           (body["batch_id"],)).fetchone()
     assert row14[0] == "ok"
     assert row14[1]["security"]["security_id"] == "30000000-0000-0000-0000-000000000123"
+
+
+def test_symbol_rules_never_remap_a_gic_but_beat_an_alias():
+    """D-36 with D-26: a GIC code keeps its own security; a user's rule for an internal code wins over an alias."""
+    plain = {r.row_no: r for r in parse("activities.csv")}
+    aliased = next(r for r in plain.values()
+                   if r.normalized and (r.normalized.get("security") or {}).get("security_id"))
+    code = aliased.normalized["security"]["broker_code"]
+    ruled = {r.row_no: r for r in parse("activities.csv", symbol_rules={"1SYNB07": ("QZGI", "TSX"),
+                                                                         code: ("QZAL", "TSX")})}
+    for n, r in plain.items():
+        if r.normalized and (r.normalized.get("security") or {}).get("broker_code") == "1SYNB07":
+            assert ruled[n].normalized == r.normalized and ruled[n].messages == r.messages, n
+    sec = ruled[aliased.row_no].normalized["security"]
+    assert (sec["symbol"], sec["exchange"], sec["broker_code"], sec["security_id"]) == ("QZAL", "TSX", code, None)
