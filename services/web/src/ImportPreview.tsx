@@ -58,7 +58,9 @@ function securityText(row: ImportRow): string {
   if (sec.symbol) return sec.exchange ? `${sec.symbol} (${sec.exchange})` : `${sec.symbol} (exchange unknown)`;
   if (sec.proposed) {
     const p = sec.proposed;
-    return `${sec.broker_code ?? ""} → ${p.symbol}${p.exchange ? ` (${p.exchange})` : ""}?`;
+    // A broker code, or a symbol the file gives without its exchange (Questrade CAD dividends).
+    const from = sec.broker_code ?? String(row.raw.Symbol ?? "");
+    return `${from} → ${p.symbol}${p.exchange ? ` (${p.exchange})` : ""}?`;
   }
   return sec.broker_code ?? "";
 }

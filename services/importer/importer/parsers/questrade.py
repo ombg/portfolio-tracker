@@ -207,9 +207,14 @@ class _Parse:
         self.accounts = {_digits(a.external_number): a for a in ctx.accounts if a.external_number}
         self.aliases = {k.upper(): v for k, v in ctx.aliases.items()}
         self.names: dict[str, tuple[str, str, int]] = {}  # security name -> (symbol, exchange, row) from this file
+        self.tsx: dict[str, int] = {}  # ticker -> first row naming it as <ticker>.TO in this file (step 1)
 
     def run(self, records: list[tuple[int, dict[str, str]]]) -> list[Row]:
         works = [_Work(Row(row_no=i, raw=rec, status="ok"), rec) for i, rec in records]
+        for i, rec in records:
+            sym = rec["Symbol"].strip().upper()
+            if sym.endswith(".TO") and LISTED.match(sym[:-3]):
+                self.tsx.setdefault(sym[:-3], i)
         for w in works:
             try:
                 self._map(w)
@@ -217,6 +222,7 @@ class _Parse:
                 w.n = None
                 w.error(e.code, e.text)
         self._resolve_broker_codes(works)
+        self._propose_tsx(works)
         self._link_withholding(works)
         self._pair(works, "FX_CONVERSION", "fx", self._day_key, _fx_legs,
                    "unpaired_fx_leg", "FX conversion leg without its other currency on the same day")
@@ -286,6 +292,10 @@ class _Parse:
         if (sec := n["security"]) and (sym := rec["Symbol"].strip().upper()) and self._symbol_rule(sym):
             w.msgs.append({"level": "info", "code": "symbol_rule",
                            "text": f"{sym} mapped to {sec['symbol']} ({sec['exchange']}) by your rule"})
+        elif sec and sec["exchange"] == "TSX" and not sym.endswith(".TO") and sec["symbol"] in self.tsx:
+            w.msgs.append({"level": "info", "code": "tsx_from_file",
+                           "text": f"{sym or sec['symbol']} read as {sec['symbol']}.TO, traded in this file "
+                                   f"(row {self.tsx[sec['symbol']]})"})
         if t in SECURITY_TYPES_REQUIRED and n["security"] is None:
             raise _RowError("missing_symbol", f"{t} row without a symbol")
 
@@ -406,8 +416,14 @@ class _Parse:
             sec["broker_code"] = sym
         elif sym.endswith(".TO") and LISTED.match(sym[:-3]):
             sec.update(symbol=sym[:-3], exchange="TSX", trading_currency="CAD")
-        elif LISTED.match(sym) and "." not in sym:
-            sec.update(symbol=sym, exchange="US", trading_currency="USD")
+        elif not LISTED.match(base := sym.removeprefix(".")):
+            raise _RowError("unknown_symbol", f"unrecognised symbol {symbol!r}; choose the security in the preview")
+        elif base in self.tsx:  # dividend rows drop the .TO the file's trades use (step 1)
+            sec.update(symbol=base, exchange="TSX", trading_currency="CAD")
+        elif currency == "USD" and "." not in base:
+            sec.update(symbol=base, exchange="US", trading_currency="USD")
+        elif currency == "CAD":  # never US by default: _propose_tsx proposes a TSX listing (step 1, D-37)
+            sec["proposed"] = {"symbol": base, "exchange": "TSX", "from_row": None}
         else:
             raise _RowError("unknown_symbol", f"unrecognised symbol {symbol!r}; choose the security in the preview")
         if sec["broker_code"] and not sec["symbol"] and sec["broker_code"] in self.aliases:
@@ -445,6 +461,24 @@ class _Parse:
             else:
                 w.error("unknown_broker_code", f"unknown broker code {sec['broker_code']}; choose the security in "
                         "the preview")
+
+    def _propose_tsx(self, works: list[_Work]) -> None:
+        """A listed symbol paid in CAD that the file never names with .TO: propose the TSX security this file traded
+        under the same name, else the symbol itself on the TSX (step 1). The user confirms it or chooses."""
+        for w in works:
+            sec = w.n and w.n["security"]
+            if not sec or sec["broker_code"] or sec["symbol"] or not (p := sec["proposed"]) or p["from_row"]:
+                continue
+            sym = w.rec["Symbol"].strip().upper()
+            match = self._match_name(sec["name"])
+            if match and match[1] == "TSX":
+                symbol, _, row_no = match
+                sec["proposed"] = {"symbol": symbol, "exchange": "TSX", "from_row": row_no}
+                w.warn("proposed_security", f"{sym} paid in CAD looks like {symbol} on the TSX (row {row_no}, same "
+                       "name); confirm it in the preview")
+            else:
+                w.warn("proposed_security", f"{sym} paid in CAD is not traded in this file; proposed as {p['symbol']} "
+                       "on the TSX, confirm it in the preview")
 
     def _match_name(self, name: str | None) -> tuple[str, str, int] | None:
         if not name or len(name) < 6:
@@ -499,7 +533,9 @@ class _Parse:
 
 def _income_key(n: dict[str, Any]) -> tuple:
     s = n["security"] or {}
-    return n["account_id"], n["pay_date"], n["currency"], s.get("symbol"), s.get("exchange"), s.get("broker_code")
+    p = s.get("proposed") or {}
+    return (n["account_id"], n["pay_date"], n["currency"], s.get("symbol"), s.get("exchange"), s.get("broker_code"),
+            p.get("symbol"))
 
 
 def _fx_legs(a: dict[str, Any], b: dict[str, Any]) -> bool:

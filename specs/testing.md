@@ -30,7 +30,7 @@ Purpose: prove the numbers are right, not just that screens render (PRD amendmen
 
 | Fixture | Exercises |
 | --- | --- |
-| questrade/synthetic_activities | every action code in the mapping table, internal symbol codes (saved, proposed, unknown), FX pair and unpaired leg, GIC round trip, journal and symbol-change pairs, withholding linked to its dividend, internal and external transfers, untracked account skipped, CSV and XLSX identical, two overlapping files with equal natural keys |
+| questrade/synthetic_activities | every action code in the mapping table, internal symbol codes (saved, proposed, unknown), TSX dividends without `.TO` (plain, dot-prefixed, units, proposed by name and by ticker), FX pair and unpaired leg, GIC round trip, journal and symbol-change pairs, withholding linked to its dividend, internal and external transfers, untracked account skipped, CSV and XLSX identical, two overlapping files with equal natural keys |
 | wealthsimple/synthetic_activities | multi-account file, executed/received/effective date rules, FX rate in description, NRT linking (single, ratio, pro rata to the cent, TSX excluded, unlinked), USD sub-account, fee refund and reversal pair, in-kind transfer value, SUBDIVISION delta, NAME_CHANGE symbol change and split legs, robo detection, overlapping file with equal natural keys |
 | snapshots/questrade_summary, snapshots/wealthsimple_holdings | Balances/Positions parsing, footer as-of, untracked accounts skipped, cash lines |
 | synthetic/duplicates | commit (D-8, D-28, D-37): overlapping re-import, two legitimate identical trades, a third copy that is new, withholding linked through a duplicate dividend, an FX pair, a re-import where every row is a duplicate |

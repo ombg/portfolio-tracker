@@ -333,7 +333,10 @@ Proposed 2026-11-26 (M2, issue #18); confirmed by Oliver 2026-11-27 (Q-20).
   listing (symbol and exchange, from the file, a symbol rule or the importer's proposal: committing a warning row
   accepts its proposal) looked up in `security_symbols` on the trade date. An unknown listing becomes a new security
   whose type stays NULL ("not classified yet", NFR-4) until market data classifies it (M4). An open exchange
-  (Wealthsimple, `import-wealthsimple.md` rule 2) needs exactly one listing of that symbol in the master. A symbol
+  (Wealthsimple, `import-wealthsimple.md` rule 2) needs exactly one listing of that symbol in the master. A
+  Questrade dividend symbol without `.TO` that the file does not explain is not left open: a CAD row gets a TSX
+  proposal instead, since the master may know only a US listing of the same ticker (`import-questrade.md`, Symbol
+  resolution step 1; Oliver, 2026-11-27, #58). A symbol
   with periods none of which covers the date, an ambiguous or unknown open listing, or a code without alias, rule or
   proposal refuses the commit with the rows (`unresolved_securities`); the user fixes them with symbol rules. Broker
   codes resolved this way are saved as the user's aliases.

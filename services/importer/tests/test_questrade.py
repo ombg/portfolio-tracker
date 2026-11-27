@@ -117,9 +117,9 @@ def test_upload_with_the_real_parser(settings, seeded, owner):
                       files={"file": ("activities.csv", data, "text/csv")})
     assert res.status_code == 201, res.text
     body = res.json()
-    # 34 staged rows: 8 skipped (FHSA, RESP, RRSP not tracked by user A), 3 errors (rows 17, 29, 34),
-    # 3 warnings (rows 8, 13, 36), the rest ok.
-    assert body["counts"] == {"ok": 20, "warning": 3, "error": 3, "skipped": 8}
+    # 38 staged rows: 8 skipped (FHSA, RESP, RRSP not tracked by user A), 3 errors (rows 17, 29, 34),
+    # 5 warnings (rows 8, 13, 36, 39, 40), the rest ok.
+    assert body["counts"] == {"ok": 22, "warning": 5, "error": 3, "skipped": 8}
     assert body["status"] == "needs_review"
     row14 = owner.execute("SELECT status, normalized FROM imports.import_rows WHERE batch_id = %s AND row_no = 14",
                           (body["batch_id"],)).fetchone()
@@ -140,3 +140,43 @@ def test_symbol_rules_never_remap_a_gic_but_beat_an_alias():
             assert ruled[n].normalized == r.normalized and ruled[n].messages == r.messages, n
     sec = ruled[aliased.row_no].normalized["security"]
     assert (sec["symbol"], sec["exchange"], sec["broker_code"], sec["security_id"]) == ("QZAL", "TSX", code, None)
+
+
+def _activities(*rows: tuple[str, str, str, str, str, str]) -> bytes:
+    """A small activities CSV for account 90000001: (activity, action, symbol, description, net, currency)."""
+    header = ("Transaction Date,Settlement Date,Action,Symbol,Description,Quantity,Price,Gross Amount,Commission,"
+              "Net Amount,Currency,Account #,Activity Type,Account Type")
+    z = "0.00000000"
+    lines = [header] + [
+        f"2025-03-03 12:00:00 AM,2025-03-03 12:00:00 AM,{action},{symbol},{desc},"
+        f"{qty},{z},{gross},0.00,{net},{cur},90000001,{activity},Individual TFSA"
+        for activity, action, symbol, desc, net, cur in rows
+        for qty, gross in [("10.00000000", net) if activity == "Trades" else (z, "0.00")]
+    ]
+    return ("\n".join(lines) + "\n").encode()
+
+
+def test_tsx_dividend_symbols():
+    """specs/import-questrade.md, Symbol resolution step 1: the cases the golden fixture does not cover."""
+    rows = QuestradeParser().parse(_activities(
+        ("Trades", "Buy", "ZZUS", "ZEDCO SYNTHETIC INC WE ACTED AS AGENT", "-100.00", "USD"),             # 2
+        ("Dividends", "", "ZZUS", "ZEDCO SYNTHETIC INC CASH DIV ON 10 SHS", "1.00", "USD"),                # 3
+        ("Dividends", "", "ZZUX", "ZEDCO SYNTHETIC INC CASH DIV ON 10 SHS", "1.00", "CAD"),                # 4
+        ("Dividends", "DIV", ".QZRL", "SYNTHETIC RULED CORP CASH DIV ON 10 SHS", "1.00", "CAD"),          # 5
+        ("Dividends", "", "ZZ.B", "ZEDCO CLASS B CASH DIV ON 10 SHS", "1.00", "USD"),                      # 6
+        ("Dividends", "", "QZ-X", "SYNTHETIC ODD CASH DIV ON 10 SHS", "1.00", "CAD"),                      # 7
+    ), "a.csv", context(symbol_rules={".QZRL": ("QZRL", "TSX")}))
+    by = {r.row_no: r for r in rows}
+    sec = {n: r.normalized and r.normalized["security"] for n, r in by.items()}
+    codes = {n: [m["code"] for m in r.messages] for n, r in by.items()}
+    # USD without .TO evidence stays a US listing, as before.
+    assert (sec[3]["symbol"], sec[3]["exchange"], by[3].status) == ("ZZUS", "US", "ok")
+    # CAD is never US by default: a name traded on a US listing is not proposed; the ticker itself is, on the TSX.
+    assert (sec[4]["symbol"], sec[4]["exchange"], sec[4]["proposed"]) == (None, None,
+                                                                           {"symbol": "ZZUX", "exchange": "TSX",
+                                                                            "from_row": None})
+    assert codes[4] == ["proposed_security"] and by[4].status == "warning"
+    # A rule on the raw symbol (leading dot included) wins, and settles the row.
+    assert (sec[5]["symbol"], sec[5]["exchange"], codes[5], by[5].status) == ("QZRL", "TSX", ["symbol_rule"], "ok")
+    # A dotted ticker in USD and a malformed ticker stay errors to choose in the preview.
+    assert codes[6] == ["unknown_symbol"] and codes[7] == ["unknown_symbol"]
