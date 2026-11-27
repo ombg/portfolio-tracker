@@ -27,13 +27,25 @@ Running state per (account, security): `qty`, `cost_native`, `cost_rc`.
 | MERGER / SPIN_OFF | per event cost allocation | | |
 
 `avg = cost / qty`. Realized gain on SELL = proceeds - commission - q * avg (native and rc).
+
+Native means the position's **book currency**: the currency its acquisitions were paid in (D-38). It is
+usually the trading currency, but a US security bought in a CAD account (Wealthsimple settles in CAD) has book
+currency CAD. An amount in another currency than the book currency converts with the row's `fx_rate_to_cad`; without
+one the native cost becomes unknown (`fx_missing`) from that row on, quantity is still tracked. rc (CAD) cost: CAD
+amounts as they are, other currencies times the row's `fx_rate_to_cad`; without one the rc cost is unknown
+(`fx_missing`) until M4 supplies the Bank of Canada rate for that date. Unknown is null with the flag, never 0.
+An in-kind TRANSFER_IN without a value (no `gross_amount`, not internal) makes the cost unknown (`cost_unknown`)
+until M4 supplies the market value on that date (D-23, D-31: then labelled estimated).
+SYMBOL_CHANGE legs on two security ids (the new ticker was already a separate security, D-37) move quantity and cost
+from the old to the new security within the group. Income received per position = DIVIDEND, DISTRIBUTION and
+INTEREST rows of that account and security, net of their WITHHOLDING_TAX rows, in rc.
 Internal in-kind transfer carries cost from the source account. If qty would go negative: stop, flag
 `negative_holding` for that account/security from that date (FR-4), and exclude its value rather than show it.
 
 Aggregate security view: sum qty and cost across accounts; `avg = sum cost / sum qty`, labelled informational.
 
 ## Cash
-Per account and currency, the sum of cash effects: BUY -(gross+commission), SELL +net, DIVIDEND/INTEREST +net,
+Per account and currency, the sum of `net_amount` over `v_ledger` (in-kind transfers carry 0). The cash effects are: BUY -(gross+commission), SELL +net, DIVIDEND/INTEREST +net,
 WITHHOLDING_TAX -, FEE - (a negative fee, i.e. a refund, adds cash), DEPOSIT +, WITHDRAWAL -, TRANSFER cash legs +/-, FX_CONVERSION legs in their own
 currency. When the broker provides `net_amount`, it is authoritative for cash.
 
