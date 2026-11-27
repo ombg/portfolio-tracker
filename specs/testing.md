@@ -24,7 +24,7 @@ Purpose: prove the numbers are right, not just that screens render (PRD amendmen
 | Provider tests | pytest with recorded HTTP responses | Yahoo / Bank of Canada parsing, partial failures, stale detection | `make test` |
 | End-to-end | Playwright against `docker compose` | the 13 PRD acceptance criteria, clicked through in a browser with synthetic users and files | `make e2e`, before each milestone is closed |
 | Type check | `tsc` | the web app and Playwright tests compile | `make test` |
-| Private smoke test | `make smoke-private` (local only) | real exports in `data/` import without errors, and the replayed ledger reconciles to the real holdings files | on Oliver's machine, on demand |
+| Private smoke test | `make smoke-private` (local only) | real exports in `data/` parse without crashing, with counts per account and status; the replayed ledger reconciling to the real holdings files follows in M8 | on Oliver's machine, on demand |
 
 ## Golden fixtures (`testdata/`)
 
@@ -59,12 +59,21 @@ another user seeing none of it. After Playwright, `scripts/e2e.sh` checks that e
 byte-identical to one of the fixture files and read-only (AC-2, D-12).
 
 ## Private smoke test
-`make smoke-private` runs the importer and the calculation engine on everything in `data/` inside the local stack:
-1. parse every activity export; report rows by status (ok / warning / error) per account;
-2. replay the ledger and compare quantities and cash with the newest holdings files per account;
-3. print only counts and pass/fail per account (e.g. "account 2 of 3: 21/23 positions match, cash matches"),
-   never account numbers, symbols or amounts, so the output is safe to paste into a chat.
-It never writes outside the local database and is excluded from CI.
+`make smoke-private` (`scripts/smoke-private.sh`, `importer/smoke.py`) runs the importer's parsers on everything in
+`data/`, on Oliver's machine only:
+1. accounts come from `data/accounts.md` (columns `Account Number`, `Type`, `Broker`); every `.csv`/`.xlsx` in
+   `data/questrade/` and `data/wealthsimple/` goes to that broker's parser, and files it refuses (holdings reports,
+   summaries) are counted as "not an activities export";
+2. per file: rows that would be added and rows the duplicate rule (D-8) would drop as already stored by an earlier
+   file; per account: rows by status (ok / warning / error), plus unmapped rows and rows of untracked accounts; the
+   importer's warning and error codes with counts; per broker: the ledger rows a commit of every file would hold;
+3. files and accounts are numbered ("file 2 of 3", "account 1 (RRSP)", the position in `accounts.md` and its type),
+   never named: no account numbers, names, file names, dates, symbols or amounts, so the output is safe to paste
+   into a chat. A crashing parser is reported by exception type and source line only, and fails the run.
+It runs in a throwaway importer container with `data/` mounted read-only, no network, a read-only file system and no
+database, so nothing from `data/` is written anywhere. `tests/test_smoke.py` runs it on the synthetic fixtures and
+checks that no value from them reaches the output. Excluded from CI. Replaying the ledger against the newest
+holdings files follows with reconciliation (M8).
 
 ## Continuous integration
 When a remote repo exists: GitHub Actions (or similar) runs `make test` on every push and `make e2e` on the main

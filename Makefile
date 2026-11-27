@@ -1,4 +1,4 @@
-.PHONY: up down test web-check importer-test importer-lock e2e generate sqlc-check migrate logs
+.PHONY: up down test web-check importer-test importer-lock e2e smoke-private generate sqlc-check migrate logs
 
 SQLC = docker run --rm -v "$(CURDIR)":/src -w /src/services/api sqlc/sqlc:1.31.1
 
@@ -23,6 +23,10 @@ importer-lock:
 # Type-checks the web app and its Playwright tests.
 web-check:
 	cd services/web && npm ci --ignore-scripts --no-audit --no-fund && npm run typecheck
+
+# Parsers on the real exports in data/; prints counts only (scripts/smoke-private.sh, D-20). Local only, not in CI.
+smoke-private:
+	./scripts/smoke-private.sh
 
 # Playwright acceptance tests against a throwaway stack on localhost:8090 (scripts/e2e.sh).
 e2e:
