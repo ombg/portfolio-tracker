@@ -53,7 +53,7 @@ type CorePortfolio struct {
 type CoreSecurity struct {
 	ID              uuid.UUID
 	Name            string
-	SecurityType    string
+	SecurityType    *string
 	TradingCurrency string
 	AssetClass      *string
 	IssuerCountry   *string
@@ -151,26 +151,26 @@ type CoreVLedger struct {
 	ID                    uuid.UUID
 	UserID                uuid.UUID
 	AccountID             uuid.UUID
-	Type                  interface{}
-	TradeDate             interface{}
+	Type                  string
+	TradeDate             time.Time
 	SettleDate            interface{}
 	RecordDate            interface{}
-	SecurityID            interface{}
-	Quantity              interface{}
+	SecurityID            *uuid.UUID
+	Quantity              decimal.NullDecimal
 	SplitRatio            interface{}
 	Price                 interface{}
 	Commission            interface{}
 	GrossAmount           interface{}
-	NetAmount             interface{}
-	Currency              interface{}
+	NetAmount             decimal.Decimal
+	Currency              string
 	FxRateToCad           interface{}
 	FxSource              interface{}
-	WithholdingTax        interface{}
+	WithholdingTax        decimal.NullDecimal
 	RelatedID             interface{}
 	LinkBasis             interface{}
-	GroupID               interface{}
+	GroupID               *uuid.UUID
 	TransferStatus        interface{}
-	CounterpartyAccountID interface{}
+	CounterpartyAccountID *uuid.UUID
 	Origin                string
 	SourceFileID          *uuid.UUID
 	SourceRowNo           *int32

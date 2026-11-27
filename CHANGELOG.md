@@ -3,6 +3,11 @@
 Releases are tagged `ver-x.y.z` on `main` (`CONTRIBUTING.md`). Newest first.
 
 ## Unreleased
+- Import commit (D-37, proposed): `POST /api/imports/{id}/commit` writes a batch into the ledger in one
+  transaction with the row duplicate rule (D-8), creates missing securities (unclassified until M4), symbols and
+  aliases, carries symbol changes onto the same security, groups FX/journal/split legs, links withholding to its
+  dividend (also across files), and pairs internal transfers across accounts and files (D-27). Rows in the preview
+  show whether they were inserted or duplicates. Migration 000005. Golden fixture `testdata/synthetic/duplicates`.
 - Import API (FR-3, D-36, proposed): `POST /api/imports` streams the upload to the importer; `GET /api/imports`
   (history) and `GET /api/imports/{id}` (preview with rows, untracked accounts and `can_commit`);
   `PATCH /api/imports/{id}/rows/{row}` fixes an action or a symbol (saved as import rules for later files),

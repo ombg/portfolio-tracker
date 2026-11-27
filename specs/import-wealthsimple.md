@@ -77,8 +77,9 @@ TSX suffixes (`ZUAG.F`), and the same company with and without `.TO` across a sy
 1. `.TO` -> TSX; `.F`, `.U` and similar class suffixes -> TSX with that class.
 2. Plain ticker: if any trade or in-kind transfer of it in the file is in USD or carries an `FX Rate` -> US
    listing; if it is traded in CAD without one -> TSX (Wealthsimple states the rate whenever a US listing settles
-   in CAD); otherwise the exchange is left empty and resolved at commit against the security master (both
-   candidates, the one whose provider name matches `name`). The security name is the `name` column.
+   in CAD); otherwise the exchange is left empty and resolved at commit: exactly one listing of the symbol in the
+   security master, else the commit names the row and the user chooses the exchange (D-37; matching provider names
+   can come with M4). The security name is the `name` column.
 3. Ambiguous or unknown -> warning or error in preview; the user's choice is saved as a symbol rule (D-36), which
    also settles an empty exchange from rule 2.
 

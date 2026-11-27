@@ -97,7 +97,8 @@ All routes require a session and run in `WithUser`; another user's account answe
    `PATCH /api/imports/{id}/rows/{row}`; action and symbol fixes are saved as import rules and the batch is parsed
    again (D-36).
 4. `POST /api/imports/{id}/commit`: portfolio-api reads staged `ok`/`warning` rows and inserts them into
-   `core.transactions` in one transaction, then marks affected accounts dirty from the earliest date (D-13).
+   `core.transactions` in one transaction (D-37); marking affected accounts dirty from the earliest date (D-13)
+   follows with the valuation cache (M5).
 
 ### Import API (FR-3, D-22, D-36)
 All routes require a session; another user's import answers 404 exactly like a missing one. Errors from the
@@ -123,6 +124,10 @@ only in the log); without `SERVICE_TOKEN` configured, uploads and corrections an
 - `POST /api/imports/{id}/reparse`: parse again after creating an account -> summary.
 - `POST /api/imports/{id}/discard`: status `discarded` (409 `batch_closed` unless open); rows and file stay, and the
   same file can be uploaded again (D-8).
+- `POST /api/imports/{id}/commit` -> `{"import": summary, "result": {"inserted", "duplicate", "linked_transfers"}}`
+  (D-37). 409 `batch_closed` unless open (so a second commit adds nothing), `not_committable` with error rows or
+  nothing to commit, `unresolved_securities` with `rows: [{row, reason}]` (nothing is written). After commit, each
+  `ok`/`warning` row in `GET /api/imports/{id}` has `outcome` (`inserted`, `duplicate`) and `transaction_id`.
 
 ### importer internal API
 Every `/internal/*` call except health needs `X-Service-Token` (compared in constant time) and, for user data,

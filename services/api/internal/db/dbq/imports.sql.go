@@ -72,21 +72,24 @@ func (q *Queries) GetImportRow(ctx context.Context, arg GetImportRowParams) (Get
 }
 
 const listImportRows = `-- name: ListImportRows :many
-SELECT row_no, status, raw, normalized, messages, user_edits
-FROM imports.import_rows
-WHERE batch_id = $1
-ORDER BY row_no
+SELECT r.row_no, r.status, r.raw, r.normalized, r.messages, r.user_edits, t.id AS transaction_id
+FROM imports.import_rows r
+LEFT JOIN core.transactions t ON t.import_batch_id = r.batch_id AND t.source_row_no = r.row_no
+WHERE r.batch_id = $1
+ORDER BY r.row_no
 `
 
 type ListImportRowsRow struct {
-	RowNo      int32
-	Status     string
-	Raw        []byte
-	Normalized []byte
-	Messages   []byte
-	UserEdits  []byte
+	RowNo         int32
+	Status        string
+	Raw           []byte
+	Normalized    []byte
+	Messages      []byte
+	UserEdits     []byte
+	TransactionID *uuid.UUID
 }
 
+// transaction_id: the ledger row a committed row became (NULL: not inserted, e.g. a duplicate).
 func (q *Queries) ListImportRows(ctx context.Context, batchID uuid.UUID) ([]ListImportRowsRow, error) {
 	rows, err := q.db.Query(ctx, listImportRows, batchID)
 	if err != nil {
@@ -103,6 +106,7 @@ func (q *Queries) ListImportRows(ctx context.Context, batchID uuid.UUID) ([]List
 			&i.Normalized,
 			&i.Messages,
 			&i.UserEdits,
+			&i.TransactionID,
 		); err != nil {
 			return nil, err
 		}
