@@ -69,6 +69,20 @@ app is reachable from another machine. After login the sign-in page checks the s
 Content-Security-Policy (`default-src 'self'`) and `X-Frame-Options: DENY`.
 M1 screens: sign in; accounts table (open and closed, archived behind "Show archived", robo accounts labelled
 "Managed, account-level only"); one form to create and edit accounts that shows the server's field errors.
+M2 screens (hash routes `#/accounts`, `#/imports`, `#/imports/<id>`, so Caddy serves one static bundle):
+- Imports: upload form (broker, optional target account, file; sends `X-Requested-With`, D-36) and the history
+  table (uploaded, file, broker, accounts, status, counts). A repeated file shows the server's refusal with a link to
+  the earlier import.
+- Preview: status and counts; a notice that names the blocking error rows, or how many rows (and how many with
+  warnings) a commit would write. Rows table filtered by status, each with date, account, type, security,
+  quantity, amount, the importer's messages and the source row (NFR-2). "Fix" appears only where the importer
+  accepts one (unmapped action -> transaction type; unknown, proposed or unlisted security -> symbol and exchange)
+  and explains that the fix is saved as a rule; "Exclude"/"Include" on every row that is not skipped. Untracked
+  account numbers (D-22) offer "Track this account" (account form prefilled from the importer's proposal, then the
+  file is parsed again) or a link to an existing account of the broker without a number.
+- Commit and discard each need a second click on a confirmation that says what happens; nothing is committed
+  silently. A refused commit (`unresolved_securities`) lists the rows and opens their fix. After commit each row
+  shows inserted or duplicate, with the result counts.
 
 ### Accounts (FR-2, D-2, D-14)
 All routes require a session and run in `WithUser`; another user's account answers 404 exactly like a missing one.

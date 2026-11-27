@@ -2,9 +2,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, api } from "./api";
 import { LoginPage } from "./LoginPage";
 import { AccountsPage } from "./AccountsPage";
+import { ImportsPage } from "./ImportsPage";
+import { ImportPreview } from "./ImportPreview";
+import { href, useRoute } from "./route";
 
 export function App() {
   const qc = useQueryClient();
+  const route = useRoute();
   const me = useQuery({ queryKey: ["me"], queryFn: api.me });
   const logout = useMutation({
     mutationFn: api.logout,
@@ -26,6 +30,14 @@ export function App() {
     <>
       <header className="topbar">
         <strong>Portfolio Tracker</strong>
+        <nav aria-label="Main">
+          <a href={href({ page: "accounts" })} aria-current={route.page === "accounts" ? "page" : undefined}>
+            Accounts
+          </a>
+          <a href={href({ page: "imports" })} aria-current={route.page !== "accounts" ? "page" : undefined}>
+            Imports
+          </a>
+        </nav>
         <span className="spacer" />
         <span>{me.data.display_name}</span>
         <button type="button" onClick={() => logout.mutate()} disabled={logout.isPending}>
@@ -33,7 +45,9 @@ export function App() {
         </button>
       </header>
       <main>
-        <AccountsPage />
+        {route.page === "accounts" && <AccountsPage />}
+        {route.page === "imports" && <ImportsPage />}
+        {route.page === "import" && <ImportPreview key={route.id} id={route.id} />}
       </main>
     </>
   );
