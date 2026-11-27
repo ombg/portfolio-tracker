@@ -12,6 +12,7 @@ import (
 
 	"github.com/ombg/portfolio-tracker/services/api/internal/accounts"
 	"github.com/ombg/portfolio-tracker/services/api/internal/auth"
+	"github.com/ombg/portfolio-tracker/services/api/internal/holdings"
 	"github.com/ombg/portfolio-tracker/services/api/internal/importer"
 	"github.com/ombg/portfolio-tracker/services/api/internal/imports"
 )
@@ -27,6 +28,7 @@ type Deps struct {
 	Signer       *auth.Signer
 	Accounts     *accounts.Store
 	Imports      *imports.Store
+	Holdings     *holdings.Store
 	Importer     *importer.Client // nil: uploads and corrections answer 503
 	CookieSecure bool             // false only for plain-HTTP development outside localhost
 }
@@ -61,6 +63,9 @@ func NewRouter(d Deps) http.Handler {
 			}
 			if d.Imports != nil {
 				(&importHandlers{store: d.Imports, importer: d.Importer}).routes(r)
+			}
+			if d.Holdings != nil {
+				(&holdingHandlers{store: d.Holdings}).routes(r)
 			}
 		})
 	}

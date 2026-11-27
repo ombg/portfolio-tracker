@@ -107,14 +107,30 @@ M3 screens (D-38; routes `#/holdings`, `#/securities/<id>`; nav gains "Holdings"
   balance"), so each number on the page can be traced (rule 5). Corrected rows are marked.
 
 ### Holdings API (FR-7, D-38)
-- `GET /api/holdings?scope=all|registered|non_registered|account:<id>` -> `{"as_of", "accounts": [{account,
-  positions: [...], cash: [{currency, amount}]}], "securities": [...], "excluded": [...], "flags": [...]}`. A position:
-  `security` (id, symbol, exchange, name, type), `quantity`, `book_currency`, `avg_cost`, `book_value`,
-  `book_value_cad`, `realized_gain_cad`, `income_cad`, `market_value` (null until M4, with `market_value_reason`),
-  `flags`, `open` (quantity not zero). Decimals are JSON strings.
-- `GET /api/securities/{id}` -> the security, its symbols over time, the user's positions in it per account, the
-  combined line and the ledger rows (from `v_ledger`) with their source. A security the user never held answers
-  404 like a missing one (RLS: the security master is global, positions are not).
+Both routes need a session; the request runs in `WithUser`, so RLS limits ledger and accounts to the user. The whole
+ledger is replayed (`internal/calc`) and then cut to the scope, because carried cost crosses accounts. Decimals are
+JSON strings; an unknown value is `null` with a flag or reason, never 0 (NFR-4).
+- `GET /api/holdings?scope=all|registered|non_registered|account:<id>` (default `all`; a bad scope is 400
+  `invalid_scope`, another user's account 404) -> `{scope, as_of, accounts, securities, excluded, totals}`:
+  - `as_of`: the latest trade date in the scope.
+  - `accounts[]`: `{account: {id, name, type, broker, is_registered, management, status}, positions[], cash[]}`;
+    archived accounts only when they have ledger rows. A position: `security` (id, symbol, exchange, name, type,
+    trading_currency; symbol null for a GIC), `quantity`, `book_currency`, `avg_cost`, `book_value`, `avg_cost_cad`,
+    `book_value_cad`, `realized_gain`, `realized_gain_cad`, `income[]` (per currency), `income_cad`, `market_value`
+    (null until M4) with `market_value_reason` (`no_price`; empty for a closed position), `flags[]` (`{code, date,
+    transaction_id}`), `open`. Listed securities first, by symbol.
+  - `securities[]`: per security across the scope's self-directed accounts: `quantity`, `book_currency` and native
+    `avg_cost`/`book_value` only when every account keeps the same book currency, `avg_cost_cad` (informational,
+    FR-8), `book_value_cad`, `realized_gain_cad`, `income_cad`, `accounts`, `flags[]` (codes), `open`.
+  - `excluded[]`: accounts left out of `securities` (`managed_account`, D-14).
+  - `totals`: `book_value_cad` (open positions), `realized_gain_cad`, `income_cad`, `market_value` (with reason
+    `no_price`), each `{amount, excludes}` where `excludes` counts the positions whose value is unknown; and `cash[]`
+    per currency.
+- `GET /api/securities/{id}` -> `{security, symbols[], positions[], combined, excluded[], transactions[]}`: every
+  symbol period; the user's position per account (managed accounts included, and named in `excluded` for the
+  combined line); every `v_ledger` row of the security with `origin`, `corrected` and `source` (file id and name,
+  row number, import id; null for manual and opening rows). A security the user has no ledger row of answers 404
+  like a missing one: the security master is global, positions are not.
 
 ### Accounts (FR-2, D-2, D-14)
 All routes require a session and run in `WithUser`; another user's account answers 404 exactly like a missing one.

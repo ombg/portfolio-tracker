@@ -157,13 +157,13 @@ type CoreVLedger struct {
 	RecordDate            interface{}
 	SecurityID            *uuid.UUID
 	Quantity              decimal.NullDecimal
-	SplitRatio            interface{}
-	Price                 interface{}
-	Commission            interface{}
-	GrossAmount           interface{}
+	SplitRatio            decimal.NullDecimal
+	Price                 decimal.NullDecimal
+	Commission            decimal.Decimal
+	GrossAmount           decimal.NullDecimal
 	NetAmount             decimal.Decimal
 	Currency              string
-	FxRateToCad           interface{}
+	FxRateToCad           decimal.NullDecimal
 	FxSource              interface{}
 	WithholdingTax        decimal.NullDecimal
 	RelatedID             interface{}
