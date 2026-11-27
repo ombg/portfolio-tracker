@@ -1,6 +1,6 @@
 # Decisions and PRD review
 
-Status: proposed 2026-11-19; Oliver's answers folded in on 2026-11-20, 2026-11-21, 2026-11-23, 2026-11-24 and 2026-11-25; D-35 confirmed 2026-11-26; D-36 and D-37 confirmed 2026-11-27.
+Status: proposed 2026-11-19; Oliver's answers folded in on 2026-11-20, 2026-11-21, 2026-11-23, 2026-11-24 and 2026-11-25; D-35 confirmed 2026-11-26; D-36 and D-37 confirmed 2026-11-27. D-38 proposed 2026-11-27 (Q-21).
 Source of requirements: `chatgpt/docs/portfolio-tracker-requirements.md` (the PRD).
 This file records (a) where the PRD needs clarification or a change and (b) every design decision taken to satisfy it.
 Each decision has an ID; specs reference them as `D-n`. Superseded decisions stay here, marked as such.
@@ -361,9 +361,24 @@ Proposed 2026-11-26 (M2, issue #18); confirmed by Oliver 2026-11-27 (Q-20).
   dirty for the valuation cache (D-13) arrive with M6 and M5.
 - Every corrective link uses the reason "linked automatically at import commit (D-37)".
 
+### D-38 Holdings before market data (proposed)
+Proposed 2026-11-27 for M3 (issues #22-#25); awaiting Oliver (Q-21).
+- **Book currency.** Average cost and book value are kept per account and security in the currency the position was
+  paid in, and in CAD at the transaction's rate (D-17). A US security bought in CAD keeps a CAD book; a missing rate
+  leaves the value unknown and flagged (`fx_missing`) until M4 brings Bank of Canada rates (`calculations.md`).
+- **No prices yet.** M3 ships without market data: market value, unrealized gain, total return and weight read "No
+  price" and totals say what they exclude, never 0 (NFR-4). M4 fills them in.
+- **Cost unknown.** An in-kind transfer in from outside without a broker value has unknown cost until M4 can value
+  it on its date (D-23, D-31).
+- **Managed accounts.** Robo accounts (D-14) show their positions in "By account" with the label "Managed,
+  account-level only", and are left out of "By security" with a note (FR-12).
+- **Closed positions.** Positions sold to zero stay listed behind "Show closed positions", for their realized gain and
+  income.
+
 ## Open questions
 
-None.
+- **Q-21 (D-38).** Holdings before market data: book currency for US securities bought in CAD, "No price" until M4,
+  managed accounts left out of the security view, closed positions behind a toggle. Confirm or change.
 
 Closed: Q-15 (GitHub push access) and Q-17 (D-33 confirmation), 2026-11-24; Q-18 (D-35
 confirmation), 2026-11-26; Q-19 (D-36) and Q-20 (D-37), 2026-11-27.

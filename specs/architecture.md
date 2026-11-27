@@ -84,6 +84,38 @@ M2 screens (hash routes `#/accounts`, `#/imports`, `#/imports/<id>`, so Caddy se
   silently. A refused commit (`unresolved_securities`) lists the rows and opens their fix. After commit each row
   shows inserted or duplicate, with the result counts.
 
+M3 screens (proposed, D-38; routes `#/holdings`, `#/securities/<id>`; nav gains "Holdings"):
+- Holdings: a scope picker (All accounts, Registered, Non-registered, one account) and a view switch "By account" /
+  "By security".
+  - By account: one section per account (name, type, broker; robo accounts labelled "Managed, account-level only").
+    Rows per security: symbol and exchange (link to the security), name, quantity, average cost and book value in
+    the book currency, book value in CAD, realized gain (CAD), income received (CAD), market value. Then one cash row
+    per currency. Positions sold to zero are behind "Show closed positions" (they still carry realized gain and
+    income).
+  - By security: one row per security across the scope's accounts: total quantity, informational average cost
+    (labelled so, FR-8), book value CAD, realized gain, income, number of accounts. Robo accounts are left out with
+    a note ("excludes 1 managed account, account-level only").
+  - Until market data exists (M4) market value, unrealized gain, total return and weight show "No price" with the
+    reason, and totals say what they exclude; never 0 (NFR-4). Flags appear as badges on the row and are explained
+    on hover and on the security page: `negative_holding` (position excluded from values from that date),
+    `cost_unknown` (in-kind transfer in without a value), `fx_missing` (CAD book value not known yet),
+    `estimated_cost` (D-31).
+- Security detail: header (symbol and exchange with earlier symbols, name, type or "Not classified yet", trading
+  currency); the combined line; one row per account (account, registered or not, quantity, average cost, book
+  value, realized gain, income); and every ledger row of the security in those accounts (date, account, type,
+  quantity, price, amount, currency, and its source: file and row, linking to the import, or "manual"/"opening
+  balance"), so each number on the page can be traced (rule 5). Corrected rows are marked.
+
+### Holdings API (FR-7, D-38)
+- `GET /api/holdings?scope=all|registered|non_registered|account:<id>` -> `{"as_of", "accounts": [{account,
+  positions: [...], cash: [{currency, amount}]}], "securities": [...], "excluded": [...], "flags": [...]}`. A position:
+  `security` (id, symbol, exchange, name, type), `quantity`, `book_currency`, `avg_cost`, `book_value`,
+  `book_value_cad`, `realized_gain_cad`, `income_cad`, `market_value` (null until M4, with `market_value_reason`),
+  `flags`, `open` (quantity not zero). Decimals are JSON strings.
+- `GET /api/securities/{id}` -> the security, its symbols over time, the user's positions in it per account, the
+  combined line and the ledger rows (from `v_ledger`) with their source. A security the user never held answers
+  404 like a missing one (RLS: the security master is global, positions are not).
+
 ### Accounts (FR-2, D-2, D-14)
 All routes require a session and run in `WithUser`; another user's account answers 404 exactly like a missing one.
 - `GET /api/brokers`, `GET /api/currencies`: reference data for the account form.
