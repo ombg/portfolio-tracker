@@ -51,7 +51,12 @@ random secrets, creates two synthetic users per browser with `ptctl`, runs Playw
 WebKit (Safari's engine, D-34) from `services/web/e2e`, and removes the stack and its volumes afterwards, also on
 failure. Row checks compare every table cell exactly so one
 column cannot hide a wrong value in another. Covered so far: AC-1 (`ac1-accounts.spec.ts`), plus FR-1 isolation and
-FR-2 edit, close and archive, and the message shown when the browser drops the session cookie.
+FR-2 edit, close and archive, and the message shown when the browser drops the session cookie; AC-2, AC-3 and AC-4
+(`ac2-imports.spec.ts`) with the synthetic Questrade and Wealthsimple activity fixtures, run by a third user per
+browser: upload, review, fixes saved as rules, untracked accounts linked or tracked, a commit refused for unknown
+exchanges, commit, the same file refused, overlapping and re-uploaded files adding only new rows, discard, and
+another user seeing none of it. After Playwright, `scripts/e2e.sh` checks that every stored original is
+byte-identical to one of the fixture files and read-only (AC-2, D-12).
 
 ## Private smoke test
 `make smoke-private` runs the importer and the calculation engine on everything in `data/` inside the local stack:

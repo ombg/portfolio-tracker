@@ -394,18 +394,30 @@ func TestCommitLinks(t *testing.T) {
 	})
 
 	// A later file: the transfer's other leg, a duplicate dividend with a new tax row, an FX pair whose first leg is
-	// already in the ledger without a group.
+	// already in the ledger without a group, and the same symbol change in another account, now that the master
+	// knows it (the old ticker's period ends on the change date).
 	second := h.stage([]stagedRow{
 		row(2, "ok", norm(map[string]any{"account_id": a2, "type": "TRANSFER_IN", "trade_date": "2025-05-03", "net_amount": "300", "counterparty_account_id": a1, "transfer_status": "awaiting_counterpart"})),
 		row(3, "ok", norm(map[string]any{"type": "DIVIDEND", "security": listed("ZZLK", "US"), "net_amount": "100", "gross_amount": "100", "currency": "USD", "natural_key": divKey})),
 		row(4, "ok", norm(map[string]any{"type": "WITHHOLDING_TAX", "net_amount": "-2", "currency": "USD", "related_row": 3, "link_basis": "single"})),
 		row(5, "ok", norm(map[string]any{"type": "FX_CONVERSION", "trade_date": "2025-04-20", "net_amount": "-136", "natural_key": fxKey, "group": map[string]any{"kind": "fx", "key": "fx:5"}})),
 		row(6, "ok", norm(map[string]any{"type": "FX_CONVERSION", "trade_date": "2025-04-20", "net_amount": "100", "currency": "USD", "group": map[string]any{"kind": "fx", "key": "fx:5"}})),
+		row(7, "ok", norm(map[string]any{"account_id": a2, "type": "SYMBOL_CHANGE", "trade_date": "2025-04-10", "quantity": "-10",
+			"security": listed("OLDL", "TSX"), "net_amount": "0", "group": map[string]any{"kind": "symbol_change", "key": "symbol_change:7"}})),
+		row(8, "ok", norm(map[string]any{"account_id": a2, "type": "SYMBOL_CHANGE", "trade_date": "2025-04-10", "quantity": "10",
+			"security": listed("NEWL", "TSX"), "net_amount": "0", "group": map[string]any{"kind": "symbol_change", "key": "symbol_change:7"}})),
 	})
 	res = h.commit(second)
-	if res.Result != (imports.CommitResult{Inserted: 3, Duplicate: 2, LinkedTransfers: 1}) {
+	if res.Result != (imports.CommitResult{Inserted: 5, Duplicate: 2, LinkedTransfers: 1}) {
 		t.Fatalf("second result = %+v", res.Result)
 	}
+	t.Run("a known symbol change: the old ticker is looked up before the change date", func(t *testing.T) {
+		for _, r := range []int{7, 8} {
+			if s := h.view(h.ledgerID(second, r), "security_id"); s != old.String() {
+				t.Errorf("row %d security %s, want %s", r, s, old)
+			}
+		}
+	})
 	t.Run("late transfer leg links the ledger row by correction", func(t *testing.T) {
 		in := h.ledgerID(second, 2)
 		if g := h.view(tx(4), "group_id"); g == "<null>" || g != h.view(in, "group_id") {

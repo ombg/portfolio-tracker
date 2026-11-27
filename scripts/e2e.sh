@@ -42,14 +42,39 @@ for _ in $(seq 60); do
 done
 curl -fsS "http://localhost:$PORT/api/health" >/dev/null
 
-# One pair of users per Playwright project (browser), so the browsers' runs do not see each other's accounts.
+# Users per Playwright project (browser), so the browsers' runs do not see each other's data: A and B for accounts
+# and isolation (AC-1), C for imports (AC-2..4).
 PASSWORD_A="e2e $(openssl rand -hex 12)"
 PASSWORD_B="e2e $(openssl rand -hex 12)"
+PASSWORD_C="e2e $(openssl rand -hex 12)"
 for browser in chromium firefox webkit; do
   echo "$PASSWORD_A" | dc exec -T api ptctl user create --email "e2e-a-$browser@example.test" --name "E2E User A" >/dev/null
   echo "$PASSWORD_B" | dc exec -T api ptctl user create --email "e2e-b-$browser@example.test" --name "E2E User B" >/dev/null
+  echo "$PASSWORD_C" | dc exec -T api ptctl user create --email "e2e-c-$browser@example.test" --name "E2E User C" >/dev/null
 done
 
-cd "$ROOT/services/web"
-E2E_BASE_URL="http://localhost:$PORT" E2E_PASSWORD_A="$PASSWORD_A" E2E_PASSWORD_B="$PASSWORD_B" \
-  npx playwright test "$@"
+(
+  cd "$ROOT/services/web"
+  E2E_BASE_URL="http://localhost:$PORT" E2E_PASSWORD_A="$PASSWORD_A" E2E_PASSWORD_B="$PASSWORD_B" \
+    E2E_PASSWORD_C="$PASSWORD_C" npx playwright test "$@"
+)
+
+# AC-2: the uploaded originals are stored unchanged. Every stored file must be byte-identical to one of the
+# synthetic inputs (its name is its SHA-256) and read-only (D-12).
+EXPECTED="$(cd "$ROOT/testdata" && find questrade/synthetic_activities/input wealthsimple/synthetic_activities/input \
+  \( -name '*.csv' -o -name '*.xlsx' \) -exec shasum -a 256 {} + | awk '{print $1}' | sort -u | tr '\n' ' ')"
+dc exec -T importer python - "$EXPECTED" <<'PY'
+import hashlib, pathlib, stat, sys
+expected = set(sys.argv[1].split())
+files = [p for p in pathlib.Path("/data/files").rglob("*") if p.is_file()]
+bad = []
+for p in files:
+    digest = hashlib.sha256(p.read_bytes()).hexdigest()
+    mode = stat.S_IMODE(p.stat().st_mode)
+    if digest != p.stem or digest not in expected or mode & 0o222:
+        bad.append(f"{p.name}: sha256 {digest[:12]}, mode {oct(mode)}")
+print(f"stored originals: {len(files)} files, {len(bad)} changed or writable")
+if bad:
+    print("\n".join(bad), file=sys.stderr)
+    sys.exit(1)
+PY
