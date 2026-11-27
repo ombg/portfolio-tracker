@@ -3,6 +3,10 @@
 Releases are tagged `ver-x.y.z` on `main` (`CONTRIBUTING.md`). Newest first.
 
 ## Unreleased
+- `make smoke-private` (#21, D-20): the parsers on the real exports in `data/`, in a container with `data/`
+  read-only, no network and no database; prints only counts (rows per account and status, message codes,
+  duplicates across files) with files and accounts numbered, never named. Tested on the synthetic fixtures,
+  including a check that nothing from them reaches the output.
 - Playwright acceptance tests for imports (`ac2-imports.spec.ts`, #20): AC-2 (both brokers' synthetic histories
   committed; each preview shows the stored original's SHA-256, and `scripts/e2e.sh` checks afterwards that every
   stored file is byte-identical to a fixture and read-only), AC-3 (unmapped actions, unknown broker codes, an invalid
