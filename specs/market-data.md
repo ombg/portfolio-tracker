@@ -64,8 +64,27 @@ Price and FX overrides are stored in `core` (portfolio-api), never in `market`, 
   trading_currency, first_trade_date, held). No user ids or quantities cross that boundary (D-1, D-32 pattern).
 - `MARKET_DATA_PROVIDER=yahoo` (default), `fixture` (recorded responses from a folder, for tests and e2e) or `off`
   (no network; everything shows "No price"). The clock is injectable (`MARKET_DATA_NOW`) for tests.
-- Internal HTTP on the Docker network with the service token: `POST /internal/backfill {security_ids}`,
-  `POST /internal/refresh` (run now), `GET /internal/status`.
+- Internal HTTP on the Docker network with the service token: `POST /internal/backfill` (fetch whatever history
+  is missing; 202), `POST /internal/refresh?kind=intraday|close` (run now; 202), `GET /internal/status` (provider,
+  clock, market open, last close date, last success, last run status, next run, recent runs with their errors);
+  `GET /internal/health` without a token. With `MARKET_DATA_PROVIDER=off` the refresh and backfill routes answer 409.
+- A second definer function `market.fx_start()` -> (currency, first_date) gives the foreign currencies in any ledger
+  and their first date, for Bank of Canada history (cash-only USD rows have no security).
+
+## Runs (#27)
+- **intraday** (the 30-minute slots): latest quote of every held security with a Yahoo symbol, and the intraday
+  USD/CAD quote, stored as `market.prices` / `market.fx_rates` kind `intraday`.
+- **close** (17:15): the last 10 days of daily history of every held security (closes, dividends, splits; upserted,
+  so a missed day heals) and of Bank of Canada rates; intraday rows older than 7 days are deleted.
+- **backfill**: history from each security's first trade date, for securities whose stored range starts later (a
+  newly imported older trade widens it), and Bank of Canada rates from the first foreign-currency ledger row. Runs at
+  start-up, after every close and when portfolio-api asks after a commit; a symbol the provider does not know is
+  retried a day later. Progress is kept in `market.backfills`.
+- Each run writes one `market.refresh_runs` row: `success`, `partial` or `failed`, symbols ok and failed, the error
+  per symbol, and the next slot. Runs never overlap. A listing without a symbol and exchange is reported as
+  "cannot be priced".
+- On start the scheduler catches up: backfill, then the slot that is due if no run of its kind started since. With
+  a fixed clock it does only that.
 
 ## Yahoo symbols
 `<symbol>` -> `<symbol with . replaced by ->` plus `.TO` for TSX (`AP.UN` -> `AP-UN.TO`), `.V` for TSXV, `.NE` for

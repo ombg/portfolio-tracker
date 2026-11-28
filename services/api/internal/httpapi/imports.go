@@ -17,6 +17,7 @@ import (
 
 	"github.com/ombg/portfolio-tracker/services/api/internal/importer"
 	"github.com/ombg/portfolio-tracker/services/api/internal/imports"
+	"github.com/ombg/portfolio-tracker/services/api/internal/marketdata"
 )
 
 // MaxUploadBytes matches the importer's limit (25 MiB); the importer enforces it exactly, the API stops a body
@@ -30,8 +31,9 @@ const UploadHeader = "X-Requested-With"
 const UploadHeaderValue = "portfolio-tracker"
 
 type importHandlers struct {
-	store    *imports.Store
-	importer *importer.Client // nil when SERVICE_TOKEN is not configured
+	store      *imports.Store
+	importer   *importer.Client   // nil when SERVICE_TOKEN is not configured
+	marketData *marketdata.Client // nil: no backfill request after a commit
 }
 
 func (h *importHandlers) routes(r chi.Router) {
@@ -94,6 +96,7 @@ func (h *importHandlers) commit(w http.ResponseWriter, r *http.Request) {
 		writeImportError(w, "commit import", err)
 		return
 	}
+	h.marketData.BackfillSoon() // new securities get their history now, not at the next scheduled run (D-39)
 	s, err := h.store.Summary(r.Context(), userID, id)
 	if err != nil {
 		writeImportError(w, "commit import", err)

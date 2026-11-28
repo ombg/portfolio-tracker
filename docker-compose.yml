@@ -1,5 +1,14 @@
-# Local stack (specs/architecture.md): database, portfolio-api, importer and web (Caddy + SPA).
-# market-data and backup join in later milestones.
+# Local stack (specs/architecture.md): database, portfolio-api, importer, market-data and web (Caddy + SPA).
+# backup joins in a later milestone.
+#
+# Networks (D-39): every service is on `backend`, which has no route to the internet. Only market-data is also on
+# `egress` (Yahoo, Bank of Canada) and only web on `edge`, which publishes its port on 127.0.0.1.
+networks:
+  backend:
+    internal: true
+  egress: {}
+  edge: {}
+
 services:
   db:
     image: postgres:16
@@ -14,6 +23,7 @@ services:
       interval: 2s
       timeout: 3s
       retries: 30
+    networks: [backend]
 
   api:
     build:
@@ -30,9 +40,13 @@ services:
       # Uploads and preview corrections go to the importer with this token (D-35, D-36).
       SERVICE_TOKEN: ${SERVICE_TOKEN:?set SERVICE_TOKEN in .env}
       IMPORTER_URL: http://importer:8000
+      # Set as the pt_market role's password after migrations (D-39).
+      MARKET_DB_PASSWORD: ${MARKET_DB_PASSWORD:?set MARKET_DB_PASSWORD in .env}
+      MARKET_DATA_URL: http://market-data:8000
     depends_on:
       db:
         condition: service_healthy
+    networks: [backend]
     # Not published: the browser reaches the API only through web (D-16).
 
   importer:
@@ -51,13 +65,35 @@ services:
         condition: service_healthy
       api:
         condition: service_started  # api enables the pt_importer login after migrating
+    networks: [backend]
     # Not published: only portfolio-api calls it, with the service token (D-16).
+
+  market-data:
+    build:
+      context: services/market-data
+      target: runtime
+    environment:
+      DB_HOST: db
+      DB_PASSWORD: ${MARKET_DB_PASSWORD:?set MARKET_DB_PASSWORD in .env}
+      SERVICE_TOKEN: ${SERVICE_TOKEN:?set SERVICE_TOKEN in .env}
+      # yahoo (default) | fixture (recorded responses, tests) | off (no requests at all; no prices) (D-39)
+      MARKET_DATA_PROVIDER: ${MARKET_DATA_PROVIDER:-yahoo}
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
+        condition: service_started  # api enables the pt_market login after migrating
+    restart: unless-stopped  # retries until api has enabled the login on a first start
+    networks: [backend, egress]
+    # Not published: only portfolio-api calls it, with the service token. It sends ticker symbols and currency
+    # pairs to the providers, nothing else (D-39).
 
   web:
     build:
       context: services/web
     depends_on:
       - api
+    networks: [backend, edge]
     ports:
       - "127.0.0.1:${WEB_PORT:-8080}:80"
 

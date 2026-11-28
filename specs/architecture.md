@@ -28,6 +28,8 @@ browser --HTTPS--> web (Caddy + React SPA)
 ### Rules
 - **Only portfolio-api is reachable from the browser** (through Caddy). importer and market-data listen on the
   internal Docker network only and require a shared service token (`X-Service-Token`).
+- **Only market-data reaches the internet** (D-39). Compose puts every service on `backend` (`internal: true`, no
+  route out); market-data alone also joins `egress`, and web alone joins `edge` to publish its port on 127.0.0.1.
 - **Table ownership**: a service writes only its own schema. Others read via views or ask the owner over HTTP.
   The ledger (`core.transactions`) is written only by portfolio-api.
 - **Migrations** for all schemas live in `db/migrations` and are applied by portfolio-api at start-up.
@@ -269,8 +271,9 @@ backups/                  nightly backups (git-ignored, D-18)
 ```
 
 ## Configuration
-`.env`: `POSTGRES_PASSWORD`, `SERVICE_TOKEN` (at least 32 bytes), `IMPORTER_DB_PASSWORD` (at least 24 characters),
-`SESSION_SECRET`, `REPORTING_CURRENCY_DEFAULT=CAD`, `FILES_DIR=/data/files`, `TZ_MARKET=America/Toronto`.
+`.env`: `POSTGRES_PASSWORD`, `SERVICE_TOKEN` (at least 32 bytes), `IMPORTER_DB_PASSWORD` and `MARKET_DB_PASSWORD`
+(at least 24 characters each), `SESSION_SECRET`, `MARKET_DATA_PROVIDER` (`yahoo` default, `off`),
+`REPORTING_CURRENCY_DEFAULT=CAD`, `FILES_DIR=/data/files`, `TZ_MARKET=America/Toronto`.
 Volumes: `pgdata`, `files` (mounted only into the importer).
 
 portfolio-api reads `DATABASE_URL` (owner connection, built by Compose from `POSTGRES_PASSWORD`), `MIGRATIONS_DIR`
@@ -278,7 +281,9 @@ portfolio-api reads `DATABASE_URL` (owner connection, built by Compose from `POS
 `SESSION_SECRET` (required to serve, at least 32 bytes), `IMPORTER_DB_PASSWORD` (set as the `pt_importer`
 password after every migration run; empty removes its login, D-35) and `COOKIE_SECURE` (the binary defaults to `true`; Compose
 sets `false` by default because it serves plain HTTP on 127.0.0.1, and it must be `true` behind HTTPS; D-34),
-`SERVICE_TOKEN` and `IMPORTER_URL` (`http://importer:8000`) for the importer's internal API. It applies
+`SERVICE_TOKEN` and `IMPORTER_URL` (`http://importer:8000`) for the importer's internal API, `MARKET_DB_PASSWORD`
+(the `pt_market` password, likewise, D-39) and `MARKET_DATA_URL` (`http://market-data:8000`): after a commit it asks
+market-data to backfill, in the background, without waiting or failing on it. It applies
 pending migrations on every start; `api migrate` (`make migrate`) applies them and exits. `GET /api/health` returns
 503 when the database is unreachable.
 
@@ -288,6 +293,12 @@ password or a short token. It runs as an unprivileged user and is not published 
 are locked with hashes in `services/importer/requirements*.txt` by `make importer-lock`, which ignores releases
 from the last 14 days. `.dockerignore` keeps `data/`, `backups/`, `context/` and `.env` out of every
 build context (D-20).
+
+market-data reads `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` (`pt_market`), `DB_PASSWORD` (from
+`MARKET_DB_PASSWORD`), `SERVICE_TOKEN`, `MARKET_DATA_PROVIDER` (`yahoo` | `fixture` | `off`), `MARKET_DATA_FIXTURES`
+(recorded responses for `fixture`) and `MARKET_DATA_NOW` (a fixed clock, tests only), and refuses to start as a role
+that could read user data. `make market-data-lock` locks its dependencies like the importer's.
+`docker-compose.e2e.yml` switches it to recorded responses and a fixed clock for `make e2e`.
 
 ## Backups (D-18)
 A `backup` container runs nightly at 02:00 local time: `pg_dump -Fc` and a copy of the `files` volume into

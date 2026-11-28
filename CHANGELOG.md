@@ -3,6 +3,15 @@
 Releases are tagged `ver-x.y.z` on `main` (`CONTRIBUTING.md`). Newest first.
 
 ## Unreleased
+- market-data runs in the stack (#27, D-3, D-39): 30-minute intraday refreshes 09:30-16:30 America/Toronto and a
+  17:15 close snapshot on TSX or NYSE trading days, history backfill from each security's first trade date (also
+  requested by portfolio-api after a commit), Bank of Canada rates from the first foreign-currency row, one
+  `market.refresh_runs` row per run (success, partial, failed), catch-up after a restart. Migration 000006: the
+  `market` tables and the `pt_market` role, which reads holdings only through `market.universe()` and
+  `market.fx_start()` (no users, no quantities). Compose: an internal `backend` network for every service; only
+  market-data also reaches the internet. `make e2e` runs it on recorded responses with a fixed clock.
+- `.env` needs `MARKET_DB_PASSWORD` (at least 24 characters, see `.env.example`); `MARKET_DATA_PROVIDER=off` turns
+  provider requests off.
 - D-39 confirmed (Q-22): market data in M4.
 - market-data service (`services/market-data`, #26): Yahoo chart API (latest quotes, daily history with dividends
   and splits, intraday FX) and Bank of Canada daily rates, as decimals parsed from the JSON text; Yahoo's

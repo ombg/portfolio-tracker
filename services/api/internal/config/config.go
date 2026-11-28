@@ -14,6 +14,10 @@ type Config struct {
 	CookieSecure  bool   // true unless COOKIE_SECURE=false; Compose sets false for plain HTTP on loopback (D-34)
 	// ImporterDBPassword is the pt_importer role's password, set after migrations; empty disables its login (D-35).
 	ImporterDBPassword string
+	// MarketDBPassword is the pt_market role's password, likewise (D-39).
+	MarketDBPassword string
+	// MarketDataURL reaches market-data's internal API (backfill after a commit); needs ServiceToken.
+	MarketDataURL string
 	// ImporterURL and ServiceToken reach the importer's internal API; without a token, uploads answer 503.
 	ImporterURL  string
 	ServiceToken string
@@ -30,6 +34,8 @@ func FromEnv() (Config, error) {
 		CookieSecure:  os.Getenv("COOKIE_SECURE") != "false",
 
 		ImporterDBPassword: os.Getenv("IMPORTER_DB_PASSWORD"),
+		MarketDBPassword:   os.Getenv("MARKET_DB_PASSWORD"),
+		MarketDataURL:      getenv("MARKET_DATA_URL", "http://market-data:8000"),
 		ImporterURL:        getenv("IMPORTER_URL", "http://importer:8000"),
 		ServiceToken:       os.Getenv("SERVICE_TOKEN"),
 	}
