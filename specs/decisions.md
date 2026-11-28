@@ -1,6 +1,6 @@
 # Decisions and PRD review
 
-Status: proposed 2026-11-19; Oliver's answers folded in on 2026-11-20, 2026-11-21, 2026-11-23, 2026-11-24 and 2026-11-25; D-35 confirmed 2026-11-26; D-36 and D-37 confirmed 2026-11-27. D-38 confirmed 2026-11-27 (Q-21). D-39 proposed 2026-11-27 (Q-22).
+Status: proposed 2026-11-19; Oliver's answers folded in on 2026-11-20, 2026-11-21, 2026-11-23, 2026-11-24 and 2026-11-25; D-35 confirmed 2026-11-26; D-36 and D-37 confirmed 2026-11-27. D-38 confirmed 2026-11-27 (Q-21). D-39 confirmed 2026-11-27 (Q-22).
 Source of requirements: `chatgpt/docs/portfolio-tracker-requirements.md` (the PRD).
 This file records (a) where the PRD needs clarification or a change and (b) every design decision taken to satisfy it.
 Each decision has an ID; specs reference them as `D-n`. Superseded decisions stay here, marked as such.
@@ -375,8 +375,8 @@ Proposed 2026-11-27 for M3 (issues #22-#25); confirmed by Oliver 2026-11-27 (Q-2
 - **Closed positions.** Positions sold to zero stay listed behind "Show closed positions", for their realized gain and
   income.
 
-### D-39 Market data in M4 (proposed)
-Proposed 2026-11-27 for M4 (issues #26-#30); awaiting Oliver (Q-22).
+### D-39 Market data in M4
+Proposed 2026-11-27 for M4 (issues #26-#30); confirmed by Oliver 2026-11-27 (Q-22).
 - **Privacy of provider requests.** market-data is the only service with internet access and sends only ticker
   symbols (and currency pairs) to Yahoo and the Bank of Canada; never accounts, quantities, amounts or names. Yahoo
   still learns which tickers this instance follows. `MARKET_DATA_PROVIDER=off` turns all requests off (no prices).
@@ -396,9 +396,4 @@ Proposed 2026-11-27 for M4 (issues #26-#30); awaiting Oliver (Q-22).
 
 ## Open questions
 
-- **Q-22 (D-39).** Market data in M4: only ticker symbols leave the machine (to Yahoo, Bank of Canada), with an
-  off switch; universe via a function that reveals no holders; values computed on read until M5; BoC rates and
-  closes fill M3's unknowns; per-user overrides that supersede, never delete. Confirm or change.
-
-Closed: Q-15 (GitHub push access) and Q-17 (D-33 confirmation), 2026-11-24; Q-18 (D-35
-confirmation), 2026-11-26; Q-19 (D-36) and Q-20 (D-37), 2026-11-27.
+None.

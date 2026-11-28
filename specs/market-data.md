@@ -47,7 +47,7 @@ Price and FX overrides are stored in `core` (portfolio-api), never in `market`, 
 - Removing an override (it is superseded, not deleted, NFR-3) brings the provider value back. Every valuation names
   its basis: `provider` with source and time, or `override` with the reason.
 
-## Service and access (proposed, D-39)
+## Service and access (D-39)
 - The only service with internet access. It sends **ticker symbols and currency pairs only** (Yahoo symbol, e.g.
   `QZGR.TO`; BoC series `FXUSDCAD`); never accounts, quantities, amounts, user ids or names.
 - It connects as its own role `pt_market`: writes the `market` schema, reads the security master, and learns the
@@ -64,7 +64,7 @@ NEO, `.CN` for CSE; US as is with `.` -> `-` (`BRK.B` -> `BRK-B`). GICs are not 
 A symbol Yahoo does not know is a failed symbol in the run and `missing_price` for valuations, until the user enters
 a price override.
 
-## What M4 fills in (D-38, proposed D-39)
+## What M4 fills in (D-38, D-39)
 Computed when the holdings are read (the daily cache arrives with M5, D-13):
 - Market value = quantity x latest price (override or provider) x FX to CAD (Yahoo intraday during market hours,
   else the latest Bank of Canada rate, or an override), with `basis` {price source, price time, FX source, FX time}.

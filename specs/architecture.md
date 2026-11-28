@@ -108,7 +108,7 @@ M3 screens (D-38; routes `#/holdings`, `#/securities/<id>`; nav gains "Holdings"
   quantity, price, amount, currency, and its source: file and row, linking to the import, or "manual"/"opening
   balance"), so each number on the page can be traced (rule 5). Corrected rows are marked.
 
-M4 screens (proposed, D-39; route `#/market`, nav gains "Market data"):
+M4 screens (D-39; route `#/market`, nav gains "Market data"):
 - Status card on Holdings and on the Market data page (AC-12): last successful refresh, next scheduled refresh,
   run status (Success, Partial, Failed), "Market closed - last close <date>" outside the schedule, and the number of
   stale or unpriced securities with a link to the list.
