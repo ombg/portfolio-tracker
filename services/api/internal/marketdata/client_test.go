@@ -2,6 +2,7 @@ package marketdata
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -38,4 +39,27 @@ func TestBackfill(t *testing.T) {
 		t.Fatal("a nil client must do nothing")
 	}
 	none.BackfillSoon()
+}
+
+func TestYahooSymbol(t *testing.T) {
+	for _, c := range [][3]string{{"QZGR", "TSX", "QZGR.TO"}, {"AP.UN", "TSX", "AP-UN.TO"}, {"BRK.B", "US", "BRK-B"},
+		{"QZV", "TSXV", "QZV.V"}, {"QZ", "", ""}, {"", "TSX", ""}} {
+		if got := YahooSymbol(c[0], c[1]); got != c[2] {
+			t.Errorf("YahooSymbol(%q, %q) = %q, want %q", c[0], c[1], got, c[2])
+		}
+	}
+}
+
+func TestStatusUnavailable(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+	}))
+	defer srv.Close()
+	if _, err := New(srv.URL, "t").Status(context.Background()); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("err %v", err)
+	}
+	var none *Client
+	if _, err := none.Status(context.Background()); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("nil client err %v", err)
+	}
 }

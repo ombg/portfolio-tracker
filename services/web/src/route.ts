@@ -1,19 +1,21 @@
 import { useEffect, useState } from "react";
 
 // Hash routes keep the SPA a static bundle behind Caddy: #/accounts, #/imports, #/imports/<id>, #/holdings,
-// #/securities/<id>.
+// #/securities/<id>, #/market.
 export type Route =
   | { page: "accounts" }
   | { page: "imports" }
   | { page: "import"; id: string }
   | { page: "holdings" }
-  | { page: "security"; id: string };
+  | { page: "security"; id: string }
+  | { page: "market" };
 
 export function parseRoute(hash: string): Route {
   const parts = hash.replace(/^#\/?/, "").split("/").filter(Boolean);
   if (parts[0] === "imports" && parts[1]) return { page: "import", id: parts[1] };
   if (parts[0] === "imports") return { page: "imports" };
   if (parts[0] === "holdings") return { page: "holdings" };
+  if (parts[0] === "market") return { page: "market" };
   if (parts[0] === "securities" && parts[1]) return { page: "security", id: parts[1] };
   return { page: "accounts" };
 }

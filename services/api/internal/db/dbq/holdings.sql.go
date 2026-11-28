@@ -94,6 +94,50 @@ func (q *Queries) HeldSecurities(ctx context.Context) ([]HeldSecuritiesRow, erro
 	return items, nil
 }
 
+const latestPrices = `-- name: LatestPrices :many
+SELECT DISTINCT ON (p.security_id) p.security_id, p.price, p.currency, p.observed_at, p.source, p.kind
+FROM market.prices p
+WHERE p.security_id = ANY($1::uuid[])
+ORDER BY p.security_id, p.observed_at DESC
+`
+
+type LatestPricesRow struct {
+	SecurityID uuid.UUID
+	Price      decimal.Decimal
+	Currency   string
+	ObservedAt time.Time
+	Source     string
+	Kind       string
+}
+
+// The newest provider price of each given security (market data is global; the caller passes its own ids).
+func (q *Queries) LatestPrices(ctx context.Context, securityIds []uuid.UUID) ([]LatestPricesRow, error) {
+	rows, err := q.db.Query(ctx, latestPrices, securityIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []LatestPricesRow{}
+	for rows.Next() {
+		var i LatestPricesRow
+		if err := rows.Scan(
+			&i.SecurityID,
+			&i.Price,
+			&i.Currency,
+			&i.ObservedAt,
+			&i.Source,
+			&i.Kind,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const ledgerForReplay = `-- name: LedgerForReplay :many
 
 SELECT l.id, l.account_id, l.type, l.trade_date, l.security_id, l.quantity, l.split_ratio, l.price, l.commission,

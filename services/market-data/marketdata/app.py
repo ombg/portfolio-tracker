@@ -7,14 +7,14 @@ import hmac
 import logging
 import threading
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Annotated, Any
 
 import httpx
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import JSONResponse
 
-from . import calendar, schedule
+from . import calendar, schedule, stale
 from .calendar import TZ
 from .config import Settings
 from .providers.boc import BankOfCanada
@@ -91,6 +91,9 @@ def status(store: Store, settings: Settings, refresher: Refresher | None) -> dic
         "now": now.isoformat(),
         "market_open": schedule.market_open(now),
         "last_close_date": calendar.latest_close(now, "TSX").astimezone(TZ).date().isoformat(),
+        # A price observed before this is stale (D-3), per exchange; portfolio-api applies it to the user's holdings.
+        "stale_before": {x: iso((stale.reference_time(now, x) - 2 * stale.INTERVAL).astimezone(timezone.utc))
+                         for x in calendar.EXCHANGES},
         "last_success_at": iso(last_success["finished_at"]) if last_success else None,
         "last_run_status": scheduled[0]["status"] if scheduled else None,
         "next_run_at": iso(schedule.next_slot(now).at) if refresher and not settings.frozen_now else None,

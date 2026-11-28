@@ -628,3 +628,54 @@ func IsError(err error) (*Error, bool) {
 	ok := errors.As(err, &e)
 	return e, ok
 }
+
+// ---- for the market status (FR-6) ------------------------------------------------------------------------------
+
+// HeldSecurity is a security in the user's ledger and whether any account still holds it.
+type HeldSecurity struct {
+	Security
+	Open bool
+}
+
+// LatestPrice is the newest provider price of a security.
+type LatestPrice struct {
+	Price      decimal.Decimal
+	Currency   string
+	ObservedAt time.Time
+	Source     string
+	Kind       string
+}
+
+// Securities returns every security in the user's ledger, with open ones marked, and their latest prices.
+func (s *Store) Securities(ctx context.Context, userID uuid.UUID) ([]HeldSecurity, map[uuid.UUID]LatestPrice, error) {
+	prices := map[uuid.UUID]LatestPrice{}
+	var out []HeldSecurity
+	st, err := s.load(ctx, userID, func(q *dbq.Queries) error { return nil })
+	if err != nil {
+		return nil, nil, err
+	}
+	open := map[uuid.UUID]bool{}
+	for _, p := range st.result.Positions {
+		if p.Open() {
+			open[uuid.MustParse(p.SecurityID)] = true
+		}
+	}
+	ids := make([]uuid.UUID, 0, len(st.securities))
+	for id, sec := range st.securities {
+		out = append(out, HeldSecurity{Security: sec, Open: open[id]})
+		ids = append(ids, id)
+	}
+	sort.Slice(out, func(i, j int) bool { return label(out[i].Security) < label(out[j].Security) })
+	err = db.WithUser(ctx, s.Pool, userID, func(tx pgx.Tx) error {
+		rows, err := dbq.New(tx).LatestPrices(ctx, ids)
+		if err != nil {
+			return fmt.Errorf("latest prices: %w", err)
+		}
+		for _, r := range rows {
+			prices[r.SecurityID] = LatestPrice{Price: r.Price, Currency: r.Currency, ObservedAt: r.ObservedAt,
+				Source: r.Source, Kind: r.Kind}
+		}
+		return nil
+	})
+	return out, prices, err
+}

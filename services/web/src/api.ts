@@ -329,6 +329,31 @@ export interface SecurityDetail {
   transactions: LedgerRow[];
 }
 
+// Market data status (FR-6, AC-12, D-39), seen through the caller's securities.
+export type MarketState = "success" | "partial" | "failed" | "stale" | "off" | "unavailable" | "never";
+
+export interface MarketRun {
+  kind: "intraday" | "close" | "backfill";
+  started_at: string | null;
+  finished_at: string | null;
+  status: "running" | "success" | "partial" | "failed";
+  errors: Record<string, string>;
+}
+
+export interface MarketStatus {
+  state: MarketState;
+  provider: string | null;
+  market_open: boolean | null;
+  last_close_date: string | null;
+  last_success_at: string | null;
+  last_run_at: string | null;
+  last_run_status: string | null;
+  next_run_at: string | null;
+  stale: { security: HeldSecurity; price: string; currency: string; observed_at: string; source: string }[];
+  unpriced: HeldSecurity[];
+  runs: MarketRun[];
+}
+
 export const api = {
   me: () => request<Profile>("GET", "/api/me"),
   login: (email: string, password: string) => request<void>("POST", "/api/auth/login", { email, password }),
@@ -352,6 +377,7 @@ export const api = {
     request<{ import: ImportSummary; result: CommitResult }>("POST", `/api/imports/${id}/commit`),
   holdings: (scope: string) => request<HoldingsReport>("GET", `/api/holdings?scope=${encodeURIComponent(scope)}`),
   security: (id: string) => request<SecurityDetail>("GET", `/api/securities/${id}`),
+  marketStatus: () => request<MarketStatus>("GET", "/api/market/status"),
 };
 
 export const TYPE_LABELS: Record<AccountType, string> = {

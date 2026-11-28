@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { TYPE_LABELS, api, type AccountHoldings, type CombinedPosition, type HoldingsReport, type Total } from "./api";
 import { Amount, FlagTags, MarketValue, SecurityLink, UnitCost, flagCodes } from "./holdingsUi";
 import { money, quantity } from "./format";
+import { MarketStatusCard } from "./MarketStatus";
 
 type View = "account" | "security";
 
@@ -47,6 +48,7 @@ export function HoldingsPage() {
         </label>
       </div>
 
+      <MarketStatusCard />
       {report.isPending && <p className="status">Loading holdings…</p>}
       {report.error && (
         <p className="error" role="alert">

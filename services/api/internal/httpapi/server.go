@@ -15,6 +15,7 @@ import (
 	"github.com/ombg/portfolio-tracker/services/api/internal/holdings"
 	"github.com/ombg/portfolio-tracker/services/api/internal/importer"
 	"github.com/ombg/portfolio-tracker/services/api/internal/imports"
+	"github.com/ombg/portfolio-tracker/services/api/internal/market"
 	"github.com/ombg/portfolio-tracker/services/api/internal/marketdata"
 )
 
@@ -68,6 +69,7 @@ func NewRouter(d Deps) http.Handler {
 			}
 			if d.Holdings != nil {
 				(&holdingHandlers{store: d.Holdings}).routes(r)
+				(&marketHandlers{store: &market.Store{Holdings: d.Holdings, Client: d.MarketData}}).routes(r)
 			}
 		})
 	}

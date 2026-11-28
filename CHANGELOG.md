@@ -3,6 +3,10 @@
 Releases are tagged `ver-x.y.z` on `main` (`CONTRIBUTING.md`). Newest first.
 
 ## Unreleased
+- Market data status (#28, FR-6, AC-12): `GET /api/market/status` and a status card on Holdings and on the new
+  Market data page (nav "Market data"): Up to date, Partial, Failed, Stale, turned off, not reachable or no run yet;
+  last successful refresh, market open or "Market closed - last close <date>", next refresh, and the caller's stale
+  and unpriced holdings; recent runs with the caller's failed symbols only (other users' tickers never show).
 - market-data runs in the stack (#27, D-3, D-39): 30-minute intraday refreshes 09:30-16:30 America/Toronto and a
   17:15 close snapshot on TSX or NYSE trading days, history backfill from each security's first trade date (also
   requested by portfolio-api after a commit), Bank of Canada rates from the first foreign-currency row, one
