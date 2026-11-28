@@ -1,0 +1,11 @@
+{
+  "_comment": "Synthetic (D-20). A (TFSA) moves 4 of its 10 S1 to B (FHSA) in kind and 500 CAD in cash; both pairs share a group (D-27). B's leg is dated two days before A's, as brokers settle on different days.",
+  "transactions": [
+    {"id": "t1", "account": "A", "type": "DEPOSIT", "date": "2025-01-02", "net_amount": "1000", "currency": "CAD"},
+    {"id": "t2", "account": "A", "type": "BUY", "date": "2025-01-10", "security": "S1", "quantity": "10", "price": "20", "net_amount": "-200", "currency": "CAD"},
+    {"id": "t3", "account": "B", "type": "TRANSFER_IN", "date": "2025-03-01", "security": "S1", "quantity": "4", "net_amount": "0", "currency": "CAD", "group": "g1", "counterparty": "A"},
+    {"id": "t4", "account": "A", "type": "TRANSFER_OUT", "date": "2025-03-03", "security": "S1", "quantity": "4", "net_amount": "0", "currency": "CAD", "group": "g1", "counterparty": "B"},
+    {"id": "t5", "account": "A", "type": "TRANSFER_OUT", "date": "2025-04-01", "net_amount": "-500", "currency": "CAD", "group": "g2", "counterparty": "B"},
+    {"id": "t6", "account": "B", "type": "TRANSFER_IN", "date": "2025-04-01", "net_amount": "500", "currency": "CAD", "group": "g2", "counterparty": "A"}
+  ]
+}

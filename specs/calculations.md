@@ -1,7 +1,10 @@
 # Calculations
 
 Implements: FR-7, FR-8, FR-9, FR-10, FR-11, NFR-2, NFR-4. Decisions: D-4, D-5, D-6, D-9, D-10, D-17.
-All calculations live in `services/api/internal/calc` and run on `v_ledger` in (trade_date, id) order.
+All calculations live in `services/api/internal/calc` and run on `v_ledger` in trade-date order; within a day, rows
+that add shares (BUY, DRIP, TRANSFER_IN, splits and positive legs) go before rows that remove them, so a same-day
+buy and sell never looks like a sale without history; otherwise the source order. The receiving leg of a carried
+group (internal transfer, symbol change, journal) waits for its giving leg, whatever their dates.
 Every result carries `basis` metadata (price source + time, FX source + time, flags) so the UI can show it (NFR-2).
 
 ## Reporting scopes (PRD 4.1)
@@ -27,13 +30,26 @@ Running state per (account, security): `qty`, `cost_native`, `cost_rc`.
 | MERGER / SPIN_OFF | per event cost allocation | | |
 
 `avg = cost / qty`. Realized gain on SELL = proceeds - commission - q * avg (native and rc).
+
+Native means the position's **book currency**: the currency its acquisitions were paid in (D-38). It is
+usually the trading currency, but a US security bought in a CAD account (Wealthsimple settles in CAD) has book
+currency CAD. An amount in another currency than the book currency converts with the row's `fx_rate_to_cad`; without
+one the native cost becomes unknown (`fx_missing`) from that row on, quantity is still tracked. rc (CAD) cost: CAD
+amounts as they are, other currencies times the row's `fx_rate_to_cad`; without one the rc cost is unknown
+(`fx_missing`) until M4 supplies the Bank of Canada rate for that date. Unknown is null with the flag, never 0.
+An in-kind TRANSFER_IN without a value (no `gross_amount`, not internal) makes the cost unknown (`cost_unknown`)
+until M4 supplies the market value on that date (D-23, D-31: then labelled estimated).
+SYMBOL_CHANGE legs on two security ids (the new ticker was already a separate security, D-37) move quantity and cost
+from the old to the new security within the group. Income received per position = DIVIDEND, DISTRIBUTION and
+INTEREST rows of that account and security, net of their WITHHOLDING_TAX rows, in rc.
 Internal in-kind transfer carries cost from the source account. If qty would go negative: stop, flag
 `negative_holding` for that account/security from that date (FR-4), and exclude its value rather than show it.
 
 Aggregate security view: sum qty and cost across accounts; `avg = sum cost / sum qty`, labelled informational.
 
 ## Cash
-Per account and currency, the sum of cash effects: BUY -(gross+commission), SELL +net, DIVIDEND/INTEREST +net,
+Per account and currency, the sum of `net_amount` over `v_ledger`; a currency gets a cash line once a row moves
+cash in it (in-kind transfers carry 0). The cash effects are: BUY -(gross+commission), SELL +net, DIVIDEND/INTEREST +net,
 WITHHOLDING_TAX -, FEE - (a negative fee, i.e. a refund, adds cash), DEPOSIT +, WITHDRAWAL -, TRANSFER cash legs +/-, FX_CONVERSION legs in their own
 currency. When the broker provides `net_amount`, it is authoritative for cash.
 

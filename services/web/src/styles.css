@@ -106,3 +106,22 @@ ul.untracked .card { margin-top: 12px; }
   table { display: block; overflow-x: auto; }
 }
 .nowrap { white-space: nowrap; }
+
+/* Holdings (D-38) */
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+th.num { white-space: nowrap; }
+.unknown { color: var(--warning); font-style: italic; }
+.tag.flag { color: var(--warning); border-color: var(--warning); }
+td .tag { display: inline-block; white-space: nowrap; margin-top: 2px; }
+tr.closed td { color: var(--muted); }
+.scroll { overflow-x: auto; }
+.cash { margin: 10px 0 0; }
+.segmented { display: inline-flex; }
+.segmented button { border-radius: 0; background: transparent; color: var(--text); border-color: var(--border); }
+.segmented button:first-child { border-radius: 6px 0 0 6px; }
+.segmented button:last-child { border-radius: 0 6px 6px 0; border-left: none; }
+.segmented button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.totals { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; margin: 0; }
+.totals dt { font-size: 0.8rem; color: var(--muted); }
+.totals dd { margin: 2px 0 0; font-variant-numeric: tabular-nums; }
+section.card h2 { margin-top: 0; }

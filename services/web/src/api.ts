@@ -205,6 +205,130 @@ export const LEDGER_TYPES = [
 ] as const;
 export const EXCHANGES = ["TSX", "TSXV", "NEO", "CSE", "US"] as const;
 
+// Holdings (FR-7, D-38). Decimals are strings; null is unknown, never 0 (NFR-4).
+export interface HeldSecurity {
+  id: string;
+  symbol: string | null; // null for a GIC
+  exchange: string | null;
+  name: string;
+  type: string | null; // null: not classified yet
+  trading_currency: string;
+}
+
+export interface Money {
+  currency: string;
+  amount: string;
+}
+
+export interface PositionFlag {
+  code: string;
+  date: string;
+  transaction_id: string;
+}
+
+export interface Position {
+  security: HeldSecurity;
+  quantity: string;
+  book_currency: string;
+  avg_cost: string | null;
+  book_value: string | null;
+  avg_cost_cad: string | null;
+  book_value_cad: string | null;
+  realized_gain: string | null;
+  realized_gain_cad: string | null;
+  income: Money[];
+  income_cad: string | null;
+  market_value: string | null;
+  market_value_reason: string;
+  flags: PositionFlag[];
+  open: boolean;
+}
+
+export interface HoldingsAccount {
+  id: string;
+  name: string;
+  type: AccountType;
+  broker: Broker;
+  is_registered: boolean;
+  management: Management;
+  status: AccountStatus;
+}
+
+export interface AccountHoldings {
+  account: HoldingsAccount;
+  positions: Position[];
+  cash: Money[];
+}
+
+export interface CombinedPosition {
+  security: HeldSecurity;
+  quantity: string;
+  book_currency: string | null;
+  avg_cost: string | null;
+  book_value: string | null;
+  avg_cost_cad: string | null;
+  book_value_cad: string | null;
+  realized_gain_cad: string | null;
+  income_cad: string | null;
+  accounts: number;
+  flags: string[];
+  open: boolean;
+}
+
+export interface ExcludedAccount {
+  account_id: string;
+  name: string;
+  reason: "managed_account";
+}
+
+export interface Total {
+  amount: string | null;
+  excludes: number;
+  reason?: string;
+}
+
+export interface HoldingsReport {
+  scope: string;
+  as_of: string | null;
+  accounts: AccountHoldings[];
+  securities: CombinedPosition[];
+  excluded: ExcludedAccount[];
+  totals: {
+    book_value_cad: Total;
+    realized_gain_cad: Total;
+    income_cad: Total;
+    market_value: Total;
+    cash: Money[];
+  };
+}
+
+export interface LedgerRow {
+  id: string;
+  account: { id: string; name: string };
+  type: string;
+  trade_date: string;
+  quantity: string | null;
+  split_ratio: string | null;
+  price: string | null;
+  commission: string;
+  gross_amount: string | null;
+  net_amount: string;
+  currency: string;
+  fx_rate_to_cad: string | null;
+  origin: "import" | "manual" | "opening_balance";
+  corrected: boolean;
+  source: { file_id: string | null; file_name: string | null; row_no: number | null; import_id: string | null };
+}
+
+export interface SecurityDetail {
+  security: HeldSecurity;
+  symbols: { symbol: string; exchange: string; valid_from: string | null; valid_to: string | null }[];
+  positions: { account: HoldingsAccount; position: Position }[];
+  combined: CombinedPosition | null;
+  excluded: ExcludedAccount[];
+  transactions: LedgerRow[];
+}
+
 export const api = {
   me: () => request<Profile>("GET", "/api/me"),
   login: (email: string, password: string) => request<void>("POST", "/api/auth/login", { email, password }),
@@ -226,6 +350,8 @@ export const api = {
   discard: (id: string) => request<ImportSummary>("POST", `/api/imports/${id}/discard`),
   commit: (id: string) =>
     request<{ import: ImportSummary; result: CommitResult }>("POST", `/api/imports/${id}/commit`),
+  holdings: (scope: string) => request<HoldingsReport>("GET", `/api/holdings?scope=${encodeURIComponent(scope)}`),
+  security: (id: string) => request<SecurityDetail>("GET", `/api/securities/${id}`),
 };
 
 export const TYPE_LABELS: Record<AccountType, string> = {
