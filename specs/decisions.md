@@ -1,6 +1,6 @@
 # Decisions and PRD review
 
-Status: proposed 2026-11-19; Oliver's answers folded in on 2026-11-20, 2026-11-21, 2026-11-23, 2026-11-24 and 2026-11-25; D-35 confirmed 2026-11-26; D-36 and D-37 confirmed 2026-11-27. D-38 confirmed 2026-11-27 (Q-21).
+Status: proposed 2026-11-19; Oliver's answers folded in on 2026-11-20, 2026-11-21, 2026-11-23, 2026-11-24 and 2026-11-25; D-35 confirmed 2026-11-26; D-36 and D-37 confirmed 2026-11-27. D-38 confirmed 2026-11-27 (Q-21). D-39 confirmed 2026-11-27 (Q-22).
 Source of requirements: `chatgpt/docs/portfolio-tracker-requirements.md` (the PRD).
 This file records (a) where the PRD needs clarification or a change and (b) every design decision taken to satisfy it.
 Each decision has an ID; specs reference them as `D-n`. Superseded decisions stay here, marked as such.
@@ -375,9 +375,25 @@ Proposed 2026-11-27 for M3 (issues #22-#25); confirmed by Oliver 2026-11-27 (Q-2
 - **Closed positions.** Positions sold to zero stay listed behind "Show closed positions", for their realized gain and
   income.
 
+### D-39 Market data in M4
+Proposed 2026-11-27 for M4 (issues #26-#30); confirmed by Oliver 2026-11-27 (Q-22).
+- **Privacy of provider requests.** market-data is the only service with internet access and sends only ticker
+  symbols (and currency pairs) to Yahoo and the Bank of Canada; never accounts, quantities, amounts or names. Yahoo
+  still learns which tickers this instance follows. `MARKET_DATA_PROVIDER=off` turns all requests off (no prices).
+- **Universe without crossing RLS.** market-data's own role `pt_market` reads the universe through a
+  `SECURITY DEFINER` function that returns securities and their first trade date only, not who holds them.
+- **Computed on read until M5.** Market value, unrealized gain and weight are computed when holdings are read; the
+  daily valuation cache (D-13) arrives with performance (M5). CAD is the only reporting currency until then (D-6).
+- **Filling M3's gaps.** USD rows without a broker rate take the Bank of Canada rate of the trade date (D-6); in-kind
+  transfers without a value take that day's close, labelled estimated (D-23, D-31).
+- **Overrides.** Per user, per security and date (prices) or pair and date (FX), with a reason; current valuations
+  use an override while it is at least as recent as the newest provider value; removing one supersedes it and the
+  provider value returns (FR-5, NFR-3).
+- **Unpriceable securities.** GICs at 1.00 (D-26). A security Yahoo does not know shows "No price" (excluded from
+  totals, flagged) until the user enters a price override.
+- **Deterministic tests.** Providers are tested with recorded HTTP; the e2e stack runs market-data with
+  `MARKET_DATA_PROVIDER=fixture` and a fixed clock, so `make e2e` needs no network.
+
 ## Open questions
 
 None.
-
-Closed: Q-15 (GitHub push access) and Q-17 (D-33 confirmation), 2026-11-24; Q-18 (D-35
-confirmation), 2026-11-26; Q-19 (D-36) and Q-20 (D-37), 2026-11-27.

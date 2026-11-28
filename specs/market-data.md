@@ -41,3 +41,37 @@ type and must be confirmed by the user (data-quality issue `missing_metadata`).
 
 ## Overrides
 Price and FX overrides are stored in `core` (portfolio-api), never in `market`, so provider data stays intact.
+- A price override is (security, date, price, reason) for one user. It is that day's close for that user; the
+  current valuation uses it while it is at least as recent as the newest provider price (D-39).
+- An FX override is (base, quote, date, rate, reason), used the same way for that date and for current values.
+- Removing an override (it is superseded, not deleted, NFR-3) brings the provider value back. Every valuation names
+  its basis: `provider` with source and time, or `override` with the reason.
+
+## Service and access (D-39)
+- The only service with internet access. It sends **ticker symbols and currency pairs only** (Yahoo symbol, e.g.
+  `QZGR.TO`; BoC series `FXUSDCAD`); never accounts, quantities, amounts, user ids or names.
+- It connects as its own role `pt_market`: writes the `market` schema, reads the security master, and learns the
+  universe through one `SECURITY DEFINER` function `market.universe()` -> (security_id, yahoo_symbol,
+  trading_currency, first_trade_date, held). No user ids or quantities cross that boundary (D-1, D-32 pattern).
+- `MARKET_DATA_PROVIDER=yahoo` (default), `fixture` (recorded responses from a folder, for tests and e2e) or `off`
+  (no network; everything shows "No price"). The clock is injectable (`MARKET_DATA_NOW`) for tests.
+- Internal HTTP on the Docker network with the service token: `POST /internal/backfill {security_ids}`,
+  `POST /internal/refresh` (run now), `GET /internal/status`.
+
+## Yahoo symbols
+`<symbol>` -> `<symbol with . replaced by ->` plus `.TO` for TSX (`AP.UN` -> `AP-UN.TO`), `.V` for TSXV, `.NE` for
+NEO, `.CN` for CSE; US as is with `.` -> `-` (`BRK.B` -> `BRK-B`). GICs are not requested: price 1.00 (D-26).
+A symbol Yahoo does not know is a failed symbol in the run and `missing_price` for valuations, until the user enters
+a price override.
+
+## What M4 fills in (D-38, D-39)
+Computed when the holdings are read (the daily cache arrives with M5, D-13):
+- Market value = quantity x latest price (override or provider) x FX to CAD (Yahoo intraday during market hours,
+  else the latest Bank of Canada rate, or an override), with `basis` {price source, price time, FX source, FX time}.
+  Unrealized gain = market value - book value (CAD); weight = market value / total of priced positions in scope.
+- Stale (D-3): the price is older than 2 intervals in market hours or older than the previous trading day's close.
+  Stale values are shown with their timestamp in amber and still counted, with a note; "No price" stays excluded.
+- `fx_missing`: a USD ledger row without a broker rate takes the Bank of Canada rate for its trade date (previous
+  business day when none), basis `boc` (D-6). The flag then disappears; the rate shows on the row.
+- `cost_unknown`: an in-kind transfer in without a value is valued at that day's close x quantity, labelled
+  "estimated" (D-23, D-31).

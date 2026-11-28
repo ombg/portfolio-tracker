@@ -108,6 +108,22 @@ M3 screens (D-38; routes `#/holdings`, `#/securities/<id>`; nav gains "Holdings"
   quantity, price, amount, currency, and its source: file and row, linking to the import, or "manual"/"opening
   balance"), so each number on the page can be traced (rule 5). Corrected rows are marked.
 
+M4 screens (D-39; route `#/market`, nav gains "Market data"):
+- Status card on Holdings and on the Market data page (AC-12): last successful refresh, next scheduled refresh,
+  run status (Success, Partial, Failed), "Market closed - last close <date>" outside the schedule, and the number of
+  stale or unpriced securities with a link to the list.
+- Market data page: the status card, recent runs (time, status, symbols ok and failed with the provider's error),
+  securities without a price or with a stale one, and the user's price and FX overrides (add, remove).
+- Holdings and security pages: market value, unrealized gain and weight; each market value shows its basis on hover
+  and on the security page (price, source, time; FX rate, source, time), amber when stale, "Override" when it is one.
+- Security page: "Override price" (date, price, reason) and the list of this security's overrides.
+
+### Market API (FR-6, FR-5, D-39)
+- `GET /api/market/status` -> `{last_success_at, last_run_status, next_run_at, market_open, last_close_date,
+  stale[], unpriced[], runs[]}` (stale and unpriced limited to the caller's securities).
+- `GET/POST /api/overrides/prices`, `DELETE /api/overrides/prices/{id}`; the same for `/api/overrides/fx`.
+  A POST needs a reason; a DELETE supersedes (the row stays, NFR-3). RLS per user.
+
 ### Holdings API (FR-7, D-38)
 Both routes need a session; the request runs in `WithUser`, so RLS limits ledger and accounts to the user. The whole
 ledger is replayed (`internal/calc`) and then cut to the scope, because carried cost crosses accounts. Decimals are
