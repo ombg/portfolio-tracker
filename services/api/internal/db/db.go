@@ -123,30 +123,43 @@ func SetUser(ctx context.Context, tx pgx.Tx, userID uuid.UUID) error {
 // ImporterRole is the importer service's own login role (D-35): no BYPASSRLS, writes only the imports schema.
 const ImporterRole = "pt_importer"
 
-// MinImporterPasswordLen is the shortest IMPORTER_DB_PASSWORD accepted.
+// MarketRole is market-data's own login role (D-39): writes only the market schema, reads holdings only through
+// market.universe().
+const MarketRole = "pt_market"
+
+// MinImporterPasswordLen is the shortest password accepted for a service role (IMPORTER_DB_PASSWORD,
+// MARKET_DB_PASSWORD).
 const MinImporterPasswordLen = 24
 
 // SetImporterLogin lets ImporterRole log in with password, or removes its login when password is empty, so the
 // role can only be used while the deployment configures it (D-35). Run it as the owner after migrations.
 func SetImporterLogin(ctx context.Context, pool *pgxpool.Pool, password string) error {
+	return SetServiceLogin(ctx, pool, ImporterRole, "IMPORTER_DB_PASSWORD", password)
+}
+
+// SetServiceLogin does the same for any service role; env names the setting in error messages.
+func SetServiceLogin(ctx context.Context, pool *pgxpool.Pool, role, env, password string) error {
+	if role != ImporterRole && role != MarketRole {
+		return fmt.Errorf("unknown service role %q", role)
+	}
 	if password == "" {
-		if _, err := pool.Exec(ctx, "ALTER ROLE "+ImporterRole+" NOLOGIN PASSWORD NULL"); err != nil {
-			return fmt.Errorf("disable importer login: %w", err)
+		if _, err := pool.Exec(ctx, "ALTER ROLE "+role+" NOLOGIN PASSWORD NULL"); err != nil {
+			return fmt.Errorf("disable %s login: %w", role, err)
 		}
 		return nil
 	}
 	if len(password) < MinImporterPasswordLen {
-		return fmt.Errorf("IMPORTER_DB_PASSWORD must be at least %d characters", MinImporterPasswordLen)
+		return fmt.Errorf("%s must be at least %d characters", env, MinImporterPasswordLen)
 	}
 	// ALTER ROLE takes no parameters; format(%L) quotes the password as a literal on the server.
 	var stmt string
-	if err := pool.QueryRow(ctx, "SELECT format('ALTER ROLE "+ImporterRole+" LOGIN PASSWORD %L', $1::text)",
+	if err := pool.QueryRow(ctx, "SELECT format('ALTER ROLE "+role+" LOGIN PASSWORD %L', $1::text)",
 		password).Scan(&stmt); err != nil {
-		return fmt.Errorf("enable importer login: %w", err)
+		return fmt.Errorf("enable %s login: %w", role, err)
 	}
 	if _, err := pool.Exec(ctx, stmt); err != nil {
 		// Never wrap pgx's error here: it may echo the statement, which holds the password.
-		return errors.New("enable importer login: ALTER ROLE failed")
+		return fmt.Errorf("enable %s login: ALTER ROLE failed", role)
 	}
 	return nil
 }

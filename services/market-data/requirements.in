@@ -1,3 +1,6 @@
 # Direct runtime dependencies. requirements.txt is the locked set with hashes: regenerate with `make market-data-lock`.
 httpx
 tzdata  # zoneinfo data for America/Toronto in slim images
+fastapi
+uvicorn
+psycopg[binary]

@@ -1,0 +1,10 @@
+# Overrides for the e2e stack (scripts/e2e.sh): market-data answers from recorded responses with a fixed clock, so
+# `make e2e` needs no network and gives the same prices every run (D-39, specs/testing.md).
+services:
+  market-data:
+    environment:
+      MARKET_DATA_PROVIDER: fixture
+      MARKET_DATA_FIXTURES: /fixtures
+      MARKET_DATA_NOW: ${MARKET_DATA_NOW:-2025-11-27T22:00:00+00:00}
+    volumes:
+      - ./testdata/market/recorded:/fixtures:ro

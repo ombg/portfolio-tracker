@@ -21,7 +21,7 @@ Purpose: prove the numbers are right, not just that screens render (PRD amendmen
 | Database tests | Go + testcontainers (Postgres in Docker) | migrations apply; RLS: user B never reads user A's rows through any query or endpoint; ledger immutability | `make test` |
 | API tests | Go `httptest` against a real Postgres | endpoints, auth, scopes, error and "data-quality" responses; import routes against a recording fake importer (streamed upload, upload CSRF header, refusals passed on, 404 for another user's batch) | `make test` |
 | Importer service tests | pytest in Docker against a throwaway migrated Postgres (`scripts/importer-test.sh`), as `pt_importer` | upload flow: originals stored unchanged, file duplicates (D-8), per-user isolation, error codes, refusal to run as a role that bypasses RLS; preview corrections with the real parsers: action and symbol rules, exclusion, re-parse after a new account, rules per user (D-36) | `make test` |
-| Provider tests | pytest with recorded HTTP responses (`testdata/market/recorded`), run with `--network none` | Yahoo / Bank of Canada parsing as decimals, split-adjusted history undone, retries, partial failures, not-found symbols, TSX/NYSE holidays, stale detection, only symbols and dates in requests | `make test` (`make market-data-test`) |
+| market-data tests | pytest with recorded HTTP responses (`testdata/market/recorded`) and a throwaway migrated Postgres, on the internal network only | Yahoo / Bank of Canada parsing as decimals, split-adjusted history undone, retries, partial failures, not-found symbols, TSX/NYSE holidays, stale detection, only symbols and dates in requests; refresh slots; intraday, close and backfill runs as `pt_market` (partial runs, upserts, only missing history fetched, pruning), catch-up, the internal API and the off switch | `make test` (`make market-data-test`) |
 | End-to-end | Playwright against `docker compose` | the 13 PRD acceptance criteria, clicked through in a browser with synthetic users and files | `make e2e`, before each milestone is closed |
 | Type check | `tsc` | the web app and Playwright tests compile | `make test` |
 | Private smoke test | `make smoke-private` (local only) | real exports in `data/` parse without crashing, with counts per account and status; the replayed ledger reconciling to the real holdings files follows in M8 | on Oliver's machine, on demand |
@@ -49,7 +49,7 @@ Each fixture folder holds `input/` files and `expected/*.json`. A failing test p
 
 ## End-to-end runs
 `make e2e` runs `scripts/e2e.sh`: it starts a separate Compose project (`pt-e2e`, port 8090, own volumes) with
-random secrets, creates four synthetic users per browser with `ptctl` (A and B for accounts and isolation, C for
+random secrets and `docker-compose.e2e.yml` (market-data on recorded responses with a fixed clock, no network), creates four synthetic users per browser with `ptctl` (A and B for accounts and isolation, C for
 imports, D for holdings), runs Playwright in Chromium, Firefox and
 WebKit (Safari's engine, D-34) from `services/web/e2e`, and removes the stack and its volumes afterwards, also on
 failure. Row checks compare every table cell exactly so one

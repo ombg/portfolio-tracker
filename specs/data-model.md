@@ -95,12 +95,20 @@ FEE rows may be negative (fee refunds, D-21).
 A `skipped` row for an untracked account holds `{"untracked_account": {number, account_type, proposed_type,
 proposed_management}}` instead, plus `proposed_base_currency` for Wealthsimple (D-22). Error rows that could not be mapped at all have `normalized = null`.
 
-## market schema (owner: market-data)
+## market schema (owner: market-data, role `pt_market`, D-39)
+
+Global facts about listings: no `user_id`, no RLS. pt_market writes them; pt_app reads them. Migration 000006.
 
 | Table | Columns | Notes |
 | --- | --- | --- |
-| prices | security_id, observed_at, trade_date, price, kind (`intraday`,`close`), source | intraday kept 7 days, closes forever |
-| fx_rates | base, quote, observed_at, rate_date, rate, kind, source | BoC daily + Yahoo intraday |
-| refresh_runs | id, started_at, finished_at, status (`success`,`partial`,`failed`), symbols_ok, symbols_failed, errors jsonb, next_run_at | FR-6 status |
-| provider_metadata | security_id, source, fetched_at, payload jsonb | sector, industry, country, dividends |
-| dividend_events | security_id, ex_date, pay_date, amount, currency, source | estimated income schedule |
+| prices | security_id, kind (`intraday`,`close`), trade_date, observed_at, price, currency, source, fetched_at | per share as held that day (split adjustment undone); one close per security, day and source; intraday kept 7 days, closes forever |
+| fx_rates | base, quote, kind (`intraday`,`daily`), rate_date, observed_at, rate, source, fetched_at | BoC daily (one per day and source) + Yahoo intraday |
+| dividend_events | security_id, ex_date, amount, currency, source, fetched_at | per share as held on the ex-date; estimated income schedule (M6) |
+| split_events | security_id, day, ratio, source, fetched_at | new shares per old share |
+| refresh_runs | id, kind (`intraday`,`close`,`backfill`), started_at, finished_at, status (`running`,`success`,`partial`,`failed`), symbols_ok, symbols_failed, errors jsonb, next_run_at | FR-6 status; errors keyed by provider symbol |
+| backfills | security_id, from_date, through_date, fetched_at, error | how far each security's history was fetched |
+
+Functions (`SECURITY DEFINER`, executable by pt_market only): `market.universe()` -> security_id, symbol, exchange,
+trading_currency, first_trade_date, held (GICs excluded); `market.fx_start()` -> currency, first_date. Neither
+returns a user id, account or quantity.
+`provider_metadata` (sector, industry, country from Yahoo's quoteSummary) arrives with M7, where it is used.

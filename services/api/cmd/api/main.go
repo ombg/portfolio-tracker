@@ -19,6 +19,7 @@ import (
 	"github.com/ombg/portfolio-tracker/services/api/internal/httpapi"
 	"github.com/ombg/portfolio-tracker/services/api/internal/importer"
 	"github.com/ombg/portfolio-tracker/services/api/internal/imports"
+	"github.com/ombg/portfolio-tracker/services/api/internal/marketdata"
 )
 
 func main() {
@@ -47,6 +48,9 @@ func run() error {
 	if err := db.SetImporterLogin(ctx, pool, cfg.ImporterDBPassword); err != nil {
 		return err
 	}
+	if err := db.SetServiceLogin(ctx, pool, db.MarketRole, "MARKET_DB_PASSWORD", cfg.MarketDBPassword); err != nil {
+		return err
+	}
 	// `api migrate` applies migrations and exits (make migrate); otherwise serve.
 	if len(os.Args) > 1 && os.Args[1] == "migrate" {
 		slog.Info("migrations applied")
@@ -58,8 +62,10 @@ func run() error {
 	}
 
 	var imp *importer.Client
+	var md *marketdata.Client
 	if cfg.ServiceToken != "" {
 		imp = importer.New(cfg.ImporterURL, cfg.ServiceToken)
+		md = marketdata.New(cfg.MarketDataURL, cfg.ServiceToken)
 	} else {
 		slog.Warn("SERVICE_TOKEN is not set: uploads and import corrections are unavailable")
 	}
@@ -69,7 +75,7 @@ func run() error {
 		Handler: httpapi.NewRouter(httpapi.Deps{
 			DB: pool, Auth: auth.NewStore(pool), Signer: signer, CookieSecure: cfg.CookieSecure,
 			Accounts: &accounts.Store{Pool: pool}, Imports: &imports.Store{Pool: pool}, Importer: imp,
-			Holdings: &holdings.Store{Pool: pool},
+			Holdings: &holdings.Store{Pool: pool}, MarketData: md,
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 	}

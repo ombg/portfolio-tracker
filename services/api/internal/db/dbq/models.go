@@ -228,3 +228,62 @@ type ImportsSourceFile struct {
 	UploadedAt   time.Time
 	DeletedAt    *time.Time
 }
+
+type MarketBackfill struct {
+	SecurityID  uuid.UUID
+	FromDate    time.Time
+	ThroughDate time.Time
+	FetchedAt   time.Time
+	Error       *string
+}
+
+type MarketDividendEvent struct {
+	SecurityID uuid.UUID
+	ExDate     time.Time
+	Amount     decimal.Decimal
+	Currency   string
+	Source     string
+	FetchedAt  time.Time
+}
+
+type MarketFxRate struct {
+	Base       string
+	Quote      string
+	Kind       string
+	RateDate   time.Time
+	ObservedAt time.Time
+	Rate       decimal.Decimal
+	Source     string
+	FetchedAt  time.Time
+}
+
+type MarketPrice struct {
+	SecurityID uuid.UUID
+	Kind       string
+	TradeDate  time.Time
+	ObservedAt time.Time
+	Price      decimal.Decimal
+	Currency   string
+	Source     string
+	FetchedAt  time.Time
+}
+
+type MarketRefreshRun struct {
+	ID            uuid.UUID
+	Kind          string
+	StartedAt     time.Time
+	FinishedAt    *time.Time
+	Status        string
+	SymbolsOk     int32
+	SymbolsFailed int32
+	Errors        []byte
+	NextRunAt     *time.Time
+}
+
+type MarketSplitEvent struct {
+	SecurityID uuid.UUID
+	Day        time.Time
+	Ratio      decimal.Decimal
+	Source     string
+	FetchedAt  time.Time
+}

@@ -10,7 +10,8 @@ PORT="${E2E_PORT:-8090}"
 TMP="$(mktemp -d)"
 ENV_FILE="$TMP/e2e.env"
 
-dc() { docker compose -p "$PROJECT" --env-file "$ENV_FILE" -f "$ROOT/docker-compose.yml" "$@"; }
+# docker-compose.e2e.yml: market-data on recorded responses and a fixed clock, so no network is needed (D-39).
+dc() { docker compose -p "$PROJECT" --env-file "$ENV_FILE" -f "$ROOT/docker-compose.yml" -f "$ROOT/docker-compose.e2e.yml" "$@"; }
 
 cleanup() {
   status=$?
@@ -28,6 +29,7 @@ trap cleanup EXIT
   echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)"
   echo "SESSION_SECRET=$(openssl rand -base64 48)"
   echo "IMPORTER_DB_PASSWORD=$(openssl rand -hex 24)"
+  echo "MARKET_DB_PASSWORD=$(openssl rand -hex 24)"
   echo "SERVICE_TOKEN=$(openssl rand -hex 32)"
   echo "WEB_PORT=$PORT"
 } > "$ENV_FILE"
