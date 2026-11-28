@@ -177,6 +177,8 @@ def test_internal_api(seeded):
     assert st["provider"] == "fixture" and st["clock"] == "frozen" and st["market_open"] is True
     assert st["last_run_status"] == "partial" and st["last_success_at"] is None
     assert st["last_close_date"] == "2025-11-26" and st["next_run_at"] is None  # no scheduler with a frozen clock
+    # 13:00 Toronto on US Thanksgiving: TSX prices must be from 12:00 on; US prices from Wednesday 15:00 on.
+    assert st["stale_before"] == {"TSX": "2025-11-27T17:00:00+00:00", "US": "2025-11-26T20:00:00+00:00"}
     assert st["runs"][0]["errors"]["QZNO.TO"].startswith("not found")
 
 

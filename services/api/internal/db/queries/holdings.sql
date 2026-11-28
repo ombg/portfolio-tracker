@@ -36,3 +36,10 @@ FROM core.v_ledger l
 LEFT JOIN imports.source_files f ON f.id = l.source_file_id
 WHERE l.security_id = @security_id
 ORDER BY l.trade_date, l.imported_at, l.source_row_no NULLS LAST, l.id;
+
+-- name: LatestPrices :many
+-- The newest provider price of each given security (market data is global; the caller passes its own ids).
+SELECT DISTINCT ON (p.security_id) p.security_id, p.price, p.currency, p.observed_at, p.source, p.kind
+FROM market.prices p
+WHERE p.security_id = ANY(@security_ids::uuid[])
+ORDER BY p.security_id, p.observed_at DESC;

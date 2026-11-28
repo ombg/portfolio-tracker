@@ -66,7 +66,8 @@ Price and FX overrides are stored in `core` (portfolio-api), never in `market`, 
   (no network; everything shows "No price"). The clock is injectable (`MARKET_DATA_NOW`) for tests.
 - Internal HTTP on the Docker network with the service token: `POST /internal/backfill` (fetch whatever history
   is missing; 202), `POST /internal/refresh?kind=intraday|close` (run now; 202), `GET /internal/status` (provider,
-  clock, market open, last close date, last success, last run status, next run, recent runs with their errors);
+  clock, market open, last close date, `stale_before` per exchange (the D-3 cut-off as a time, so portfolio-api
+  needs no calendar), last success, last run status, next run, recent runs with their errors);
   `GET /internal/health` without a token. With `MARKET_DATA_PROVIDER=off` the refresh and backfill routes answer 409.
 - A second definer function `market.fx_start()` -> (currency, first_date) gives the foreign currencies in any ledger
   and their first date, for Bank of Canada history (cash-only USD rows have no security).

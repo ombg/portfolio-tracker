@@ -111,9 +111,11 @@ M3 screens (D-38; routes `#/holdings`, `#/securities/<id>`; nav gains "Holdings"
   balance"), so each number on the page can be traced (rule 5). Corrected rows are marked.
 
 M4 screens (D-39; route `#/market`, nav gains "Market data"):
-- Status card on Holdings and on the Market data page (AC-12): last successful refresh, next scheduled refresh,
-  run status (Success, Partial, Failed), "Market closed - last close <date>" outside the schedule, and the number of
-  stale or unpriced securities with a link to the list.
+- Status card on Holdings and on the Market data page (AC-12): the state ("Up to date", "Partial: some prices could
+  not be refreshed", "Refresh failed", "Some prices are stale", "Market data is turned off", "Market data service is
+  not reachable", "No refresh has run yet"), last successful refresh, "Open" or "Market closed - last close <date>",
+  next scheduled refresh, and how many held securities are stale or without a price, with a link to the details.
+  Refreshed every minute.
 - Market data page: the status card, recent runs (time, status, symbols ok and failed with the provider's error),
   securities without a price or with a stale one, and the user's price and FX overrides (add, remove).
 - Holdings and security pages: market value, unrealized gain and weight; each market value shows its basis on hover
@@ -121,8 +123,16 @@ M4 screens (D-39; route `#/market`, nav gains "Market data"):
 - Security page: "Override price" (date, price, reason) and the list of this security's overrides.
 
 ### Market API (FR-6, FR-5, D-39)
-- `GET /api/market/status` -> `{last_success_at, last_run_status, next_run_at, market_open, last_close_date,
-  stale[], unpriced[], runs[]}` (stale and unpriced limited to the caller's securities).
+- `GET /api/market/status` -> `{state, provider, market_open, last_close_date, last_success_at, last_run_at,
+  last_run_status, next_run_at, stale[], unpriced[], runs[]}`, from market-data's `/internal/status` seen through the
+  caller's securities. A run covers every user's securities, so each run keeps only the errors of the caller's
+  provider symbols and takes its status from them (another user's tickers never show, FR-1); a run that refreshed
+  nothing, or failed inside market-data, is failed for everyone. `stale`: the caller's open positions whose newest
+  price is older than market-data's `stale_before` for their exchange (D-3); `unpriced`: open positions with no price
+  at all (GICs excluded, D-26). `state`: `off` (provider off), `unavailable` (market-data did not answer), `never`
+  (no scheduled run yet), else `failed` or `partial` from the latest intraday/close run (also `partial` while a held
+  security has no price), else `stale` when any price is stale, else `success`. Never shown as success otherwise
+  (NFR-4).
 - `GET/POST /api/overrides/prices`, `DELETE /api/overrides/prices/{id}`; the same for `/api/overrides/fx`.
   A POST needs a reason; a DELETE supersedes (the row stays, NFR-3). RLS per user.
 

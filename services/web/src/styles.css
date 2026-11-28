@@ -125,3 +125,13 @@ tr.closed td { color: var(--muted); }
 .totals dt { font-size: 0.8rem; color: var(--muted); }
 .totals dd { margin: 2px 0 0; font-variant-numeric: tabular-nums; }
 section.card h2 { margin-top: 0; }
+
+/* Market data status (FR-6) */
+.market-card .market-state { margin: 0 0 10px; }
+.market-card.state-success .market-state { color: var(--text); }
+.market-card.state-partial .market-state, .market-card.state-stale .market-state,
+.market-card.state-never .market-state { color: var(--warning); }
+.market-card.state-failed .market-state, .market-card.state-unavailable .market-state { color: var(--error); }
+.market-card.state-off .market-state { color: var(--muted); }
+.run-partial { color: var(--warning); }
+.run-failed { color: var(--error); }

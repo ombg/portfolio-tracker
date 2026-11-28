@@ -6,6 +6,7 @@ import { ImportsPage } from "./ImportsPage";
 import { ImportPreview } from "./ImportPreview";
 import { HoldingsPage } from "./HoldingsPage";
 import { SecurityPage } from "./SecurityPage";
+import { MarketPage } from "./MarketPage";
 import { href, useRoute } from "./route";
 
 export function App() {
@@ -42,6 +43,9 @@ export function App() {
           >
             Holdings
           </a>
+          <a href={href({ page: "market" })} aria-current={route.page === "market" ? "page" : undefined}>
+            Market data
+          </a>
           <a
             href={href({ page: "imports" })}
             aria-current={route.page === "imports" || route.page === "import" ? "page" : undefined}
@@ -61,6 +65,7 @@ export function App() {
         {route.page === "import" && <ImportPreview key={route.id} id={route.id} />}
         {route.page === "holdings" && <HoldingsPage />}
         {route.page === "security" && <SecurityPage key={route.id} id={route.id} />}
+        {route.page === "market" && <MarketPage />}
       </main>
     </>
   );

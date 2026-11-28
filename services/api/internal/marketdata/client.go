@@ -3,6 +3,8 @@ package marketdata
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -55,4 +57,77 @@ func (c *Client) BackfillSoon() {
 			slog.Warn("market-data backfill request failed; the next scheduled run will catch up", "error", err)
 		}
 	}()
+}
+
+// Run is one refresh run as market-data reports it; Errors maps provider symbols to what went wrong.
+type Run struct {
+	ID            string            `json:"id"`
+	Kind          string            `json:"kind"`
+	StartedAt     *time.Time        `json:"started_at"`
+	FinishedAt    *time.Time        `json:"finished_at"`
+	Status        string            `json:"status"`
+	SymbolsOK     int               `json:"symbols_ok"`
+	SymbolsFailed int               `json:"symbols_failed"`
+	Errors        map[string]string `json:"errors"`
+}
+
+// Status is market-data's GET /internal/status.
+type Status struct {
+	Provider      string               `json:"provider"`
+	Clock         string               `json:"clock"`
+	Now           time.Time            `json:"now"`
+	MarketOpen    bool                 `json:"market_open"`
+	LastCloseDate string               `json:"last_close_date"`
+	StaleBefore   map[string]time.Time `json:"stale_before"`
+	LastSuccessAt *time.Time           `json:"last_success_at"`
+	LastRunStatus *string              `json:"last_run_status"`
+	NextRunAt     *time.Time           `json:"next_run_at"`
+	Runs          []Run                `json:"runs"`
+}
+
+// Status asks market-data how refreshes are going (FR-6). A nil client reports ErrUnavailable.
+func (c *Client) Status(ctx context.Context) (*Status, error) {
+	if c == nil {
+		return nil, ErrUnavailable
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.base+"/internal/status", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("X-Service-Token", c.token)
+	res, err := c.http.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrUnavailable, err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%w: HTTP %d", ErrUnavailable, res.StatusCode)
+	}
+	var s Status
+	if err := json.NewDecoder(res.Body).Decode(&s); err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrUnavailable, err)
+	}
+	return &s, nil
+}
+
+// ErrUnavailable: market-data did not answer; the status is shown as unavailable, never as success (NFR-4).
+var ErrUnavailable = errors.New("market-data unavailable")
+
+var yahooSuffix = map[string]string{"TSX": ".TO", "TSXV": ".V", "NEO": ".NE", "CSE": ".CN", "US": ""}
+
+// YahooSymbol mirrors market-data's mapping (marketdata/symbols.py): AP.UN on TSX -> AP-UN.TO, BRK.B -> BRK-B.
+func YahooSymbol(symbol, exchange string) string {
+	suffix, ok := yahooSuffix[exchange]
+	if !ok || symbol == "" {
+		return ""
+	}
+	return strings.ReplaceAll(strings.ToUpper(strings.TrimSpace(symbol)), ".", "-") + suffix
+}
+
+// CalendarOf is the trading calendar a listing follows (market-data's calendar.py has TSX and US).
+func CalendarOf(exchange string) string {
+	if exchange == "US" {
+		return "US"
+	}
+	return "TSX"
 }
