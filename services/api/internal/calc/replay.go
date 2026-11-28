@@ -210,6 +210,25 @@ func (r *replay) position(t *Tx) *Position {
 
 func (r *replay) apply(t *Tx) {
 	p := r.position(t)
+	r.event(p, t)
+	// Whatever took the quantity below zero (a sale, a transfer, a split delta), history is missing: the cost and
+	// value are unknown from here on (calculations.md, data-quality.md).
+	if p.Quantity.IsNegative() && !p.has(FlagNegativeHolding) {
+		p.flag(FlagNegativeHolding, t)
+		p.Cost, p.CostCAD = nil, nil
+	}
+}
+
+func (p *Position) has(code string) bool {
+	for _, f := range p.Flags {
+		if f.Code == code {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *replay) event(p *Position, t *Tx) {
 	q := decimal.Zero
 	if t.Quantity != nil {
 		q = t.Quantity.Abs()

@@ -122,3 +122,17 @@ func TestReplayDoesNotDependOnInputOrderWithinADayBeyondIncreasesFirst(t *testin
 		t.Fatalf("qty %s cost %v realized %v flags %v", p.Quantity, p.Cost, p.Realized, p.Flags)
 	}
 }
+
+func TestSplitDeltaBelowZeroIsFlagged(t *testing.T) {
+	// A reverse split's legs (Wealthsimple: -9 and +3) on shares the ledger never saw arrive.
+	r := Replay([]Tx{
+		{ID: "a", AccountID: "A", Type: "SPLIT", TradeDate: day("2025-11-02"), SecurityID: "S", Quantity: d("-9"),
+			NetAmount: decimal.Zero, Currency: "CAD", GroupID: "g"},
+		{ID: "b", AccountID: "A", Type: "SPLIT", TradeDate: day("2025-11-02"), SecurityID: "S", Quantity: d("3"),
+			NetAmount: decimal.Zero, Currency: "CAD", GroupID: "g"},
+	})
+	p := find(t, r, "A", "S")
+	if !p.Quantity.Equal(*d("-6")) || p.Cost != nil || p.CostCAD != nil || !hasFlag(p, FlagNegativeHolding, "a") {
+		t.Fatalf("qty %s cost %v flags %v", p.Quantity, p.Cost, p.Flags)
+	}
+}

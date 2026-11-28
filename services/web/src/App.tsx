@@ -4,6 +4,8 @@ import { LoginPage } from "./LoginPage";
 import { AccountsPage } from "./AccountsPage";
 import { ImportsPage } from "./ImportsPage";
 import { ImportPreview } from "./ImportPreview";
+import { HoldingsPage } from "./HoldingsPage";
+import { SecurityPage } from "./SecurityPage";
 import { href, useRoute } from "./route";
 
 export function App() {
@@ -34,7 +36,16 @@ export function App() {
           <a href={href({ page: "accounts" })} aria-current={route.page === "accounts" ? "page" : undefined}>
             Accounts
           </a>
-          <a href={href({ page: "imports" })} aria-current={route.page !== "accounts" ? "page" : undefined}>
+          <a
+            href={href({ page: "holdings" })}
+            aria-current={route.page === "holdings" || route.page === "security" ? "page" : undefined}
+          >
+            Holdings
+          </a>
+          <a
+            href={href({ page: "imports" })}
+            aria-current={route.page === "imports" || route.page === "import" ? "page" : undefined}
+          >
             Imports
           </a>
         </nav>
@@ -48,6 +59,8 @@ export function App() {
         {route.page === "accounts" && <AccountsPage />}
         {route.page === "imports" && <ImportsPage />}
         {route.page === "import" && <ImportPreview key={route.id} id={route.id} />}
+        {route.page === "holdings" && <HoldingsPage />}
+        {route.page === "security" && <SecurityPage key={route.id} id={route.id} />}
       </main>
     </>
   );

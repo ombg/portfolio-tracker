@@ -3,6 +3,12 @@
 Releases are tagged `ver-x.y.z` on `main` (`CONTRIBUTING.md`). Newest first.
 
 ## Unreleased
+- Web: Holdings page (#24, FR-7, D-38) with a scope picker, "By account" and "By security" views, closed positions
+  behind a toggle and totals that say what they leave out; market values read "No price" until M4. Security page
+  (AC-8): the combined line, each account's position and every ledger row with a link to the import row it came
+  from. Flags (missing history, FX rate missing, cost unknown) show as badges with explanations.
+- Fix (calc): any row that takes a position below zero (a split delta too, not only a sale) flags
+  `negative_holding` and makes its cost unknown.
 - Holdings API (#23, FR-7, D-38): `GET /api/holdings?scope=…` returns positions and cash per account, a combined line
   per security (managed accounts left out and named), and totals that count what they leave out; market value is
   `null` with reason `no_price` until M4. `GET /api/securities/{id}` returns a security's symbols, positions per
