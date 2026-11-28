@@ -43,25 +43,27 @@ done
 curl -fsS "http://localhost:$PORT/api/health" >/dev/null
 
 # Users per Playwright project (browser), so the browsers' runs do not see each other's data: A and B for accounts
-# and isolation (AC-1), C for imports (AC-2..4).
+# and isolation (AC-1), C for imports (AC-2..4), D for holdings (AC-8).
 PASSWORD_A="e2e $(openssl rand -hex 12)"
 PASSWORD_B="e2e $(openssl rand -hex 12)"
 PASSWORD_C="e2e $(openssl rand -hex 12)"
+PASSWORD_D="e2e $(openssl rand -hex 12)"
 for browser in chromium firefox webkit; do
   echo "$PASSWORD_A" | dc exec -T api ptctl user create --email "e2e-a-$browser@example.test" --name "E2E User A" >/dev/null
   echo "$PASSWORD_B" | dc exec -T api ptctl user create --email "e2e-b-$browser@example.test" --name "E2E User B" >/dev/null
   echo "$PASSWORD_C" | dc exec -T api ptctl user create --email "e2e-c-$browser@example.test" --name "E2E User C" >/dev/null
+  echo "$PASSWORD_D" | dc exec -T api ptctl user create --email "e2e-d-$browser@example.test" --name "E2E User D" >/dev/null
 done
 
 (
   cd "$ROOT/services/web"
   E2E_BASE_URL="http://localhost:$PORT" E2E_PASSWORD_A="$PASSWORD_A" E2E_PASSWORD_B="$PASSWORD_B" \
-    E2E_PASSWORD_C="$PASSWORD_C" npx playwright test "$@"
+    E2E_PASSWORD_C="$PASSWORD_C" E2E_PASSWORD_D="$PASSWORD_D" npx playwright test "$@"
 )
 
 # AC-2: the uploaded originals are stored unchanged. Every stored file must be byte-identical to one of the
 # synthetic inputs (its name is its SHA-256) and read-only (D-12).
-EXPECTED="$(cd "$ROOT/testdata" && find questrade/synthetic_activities/input wealthsimple/synthetic_activities/input \
+EXPECTED="$(cd "$ROOT/testdata" && find questrade/synthetic_activities/input questrade/synthetic_holdings wealthsimple/synthetic_activities/input \
   \( -name '*.csv' -o -name '*.xlsx' \) -exec shasum -a 256 {} + | awk '{print $1}' | sort -u | tr '\n' ' ')"
 dc exec -T importer python - "$EXPECTED" <<'PY'
 import hashlib, pathlib, stat, sys
