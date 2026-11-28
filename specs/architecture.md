@@ -22,7 +22,7 @@ browser --HTTPS--> web (Caddy + React SPA)
 | web | TypeScript, React, Vite, TanStack Query, Apache ECharts; Caddy | none | SPA; Caddy serves static files and reverse-proxies `/api` to portfolio-api |
 | portfolio-api | Go 1.23+, chi, pgx v5 + sqlc, golang-migrate, shopspring/decimal | users, sessions, portfolios, accounts, transactions, corrections, overrides, targets, snapshots, daily_* caches | Auth, REST API, ledger, every calculation (holdings, average cost, TWR, XIRR, income, allocation), valuation cache job, migrations |
 | importer | Python 3.12, FastAPI, pandas, openpyxl, pydantic | source_files, import_batches, import_rows | Parse broker files, map to normalized rows, validate, stage for preview; never writes the ledger directly |
-| market-data | Python 3.12, yfinance, httpx, APScheduler | prices, fx_rates, refresh_runs, provider security metadata | 30-minute refresh, history backfill, metadata and dividend data |
+| market-data | Python 3.12, httpx (Yahoo chart API, Bank of Canada Valet) | prices, fx_rates, refresh_runs, provider security metadata | 30-minute refresh, history backfill, metadata and dividend data |
 | db | PostgreSQL 16 | all | Single database, one schema per owner (`core`, `imports`, `market`) |
 
 ### Rules
@@ -261,7 +261,7 @@ db/migrations/            SQL migrations (golang-migrate)
 services/web/             React app + Caddyfile
 services/api/             Go module (cmd/api, cmd/ptctl, internal/...)
 services/importer/        Python package (parsers/questrade.py, parsers/wealthsimple.py)
-services/market-data/     Python package (providers/yahoo.py, providers/boc.py)
+services/market-data/     Python package (providers/yahoo.py, providers/boc.py, calendar.py, stale.py)
 testdata/                 golden fixtures (see specs/testing.md)
 docker-compose.yml, Makefile, .env.example
 data/                     private real exports (git-ignored, D-20)
