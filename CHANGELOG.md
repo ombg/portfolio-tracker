@@ -2,7 +2,8 @@
 
 Releases are tagged `ver-x.y.z` on `main` (`CONTRIBUTING.md`). Newest first.
 
-## Unreleased
+## ver-0.3.0 (2026-11-27)
+M3 Holdings & cash: AC-8 passes in the browser (Chromium, Firefox, WebKit).
 - Playwright acceptance tests for holdings (`ac8-holdings.spec.ts`, #25): AC-8 with the new synthetic export
   `testdata/questrade/synthetic_holdings` (numbers worked by hand in its README), run by a fourth user per browser:
   holdings by account and by security compared cell by cell, totals, scopes, the managed account left out of the
