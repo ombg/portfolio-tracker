@@ -3,6 +3,10 @@
 Releases are tagged `ver-x.y.z` on `main` (`CONTRIBUTING.md`). Newest first.
 
 ## Unreleased
+- Playwright acceptance tests for holdings (`ac8-holdings.spec.ts`, #25): AC-8 with the new synthetic export
+  `testdata/questrade/synthetic_holdings` (numbers worked by hand in its README), run by a fourth user per browser:
+  holdings by account and by security compared cell by cell, totals, scopes, the managed account left out of the
+  combined line, the security page tracing each ledger row to its import row, and FR-1 isolation.
 - Web: Holdings page (#24, FR-7, D-38) with a scope picker, "By account" and "By security" views, closed positions
   behind a toggle and totals that say what they leave out; market values read "No price" until M4. Security page
   (AC-8): the combined line, each account's position and every ledger row with a link to the import row it came

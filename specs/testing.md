@@ -32,6 +32,7 @@ Purpose: prove the numbers are right, not just that screens render (PRD amendmen
 | --- | --- |
 | questrade/synthetic_activities | every action code in the mapping table, internal symbol codes (saved, proposed, unknown), TSX dividends without `.TO` (plain, dot-prefixed, units, proposed by name and by ticker), FX pair and unpaired leg, GIC round trip, journal and symbol-change pairs, withholding linked to its dividend, internal and external transfers, untracked account skipped, CSV and XLSX identical, two overlapping files with equal natural keys |
 | wealthsimple/synthetic_activities | multi-account file, executed/received/effective date rules, FX rate in description, NRT linking (single, ratio, pro rata to the cent, TSX excluded, unlinked), USD sub-account, fee refund and reversal pair, in-kind transfer value, SUBDIVISION delta, NAME_CHANGE symbol change and split legs, robo detection, overlapping file with equal natural keys |
+| questrade/synthetic_holdings | AC-8 end to end: one TSX security in a TFSA (partial sale, dividend without `.TO`), an FHSA and a managed RRSP, a USD buy without a broker rate; expected holdings in its README |
 | snapshots/questrade_summary, snapshots/wealthsimple_holdings | Balances/Positions parsing, footer as-of, untracked accounts skipped, cash lines |
 | synthetic/duplicates | commit (D-8, D-28, D-37): overlapping re-import, two legitimate identical trades, a third copy that is new, withholding linked through a duplicate dividend, an FX pair, a re-import where every row is a duplicate |
 | synthetic/avg_cost | buys, partial sell, DRIP, split as ratio and as delta, return of capital, USD with and without a broker rate, same-day buy and sell -> qty, avg cost, realized gain, income, cash |
@@ -47,7 +48,8 @@ Each fixture folder holds `input/` files and `expected/*.json`. A failing test p
 
 ## End-to-end runs
 `make e2e` runs `scripts/e2e.sh`: it starts a separate Compose project (`pt-e2e`, port 8090, own volumes) with
-random secrets, creates two synthetic users per browser with `ptctl`, runs Playwright in Chromium, Firefox and
+random secrets, creates four synthetic users per browser with `ptctl` (A and B for accounts and isolation, C for
+imports, D for holdings), runs Playwright in Chromium, Firefox and
 WebKit (Safari's engine, D-34) from `services/web/e2e`, and removes the stack and its volumes afterwards, also on
 failure. Row checks compare every table cell exactly so one
 column cannot hide a wrong value in another. Covered so far: AC-1 (`ac1-accounts.spec.ts`), plus FR-1 isolation and
@@ -55,7 +57,10 @@ FR-2 edit, close and archive, and the message shown when the browser drops the s
 (`ac2-imports.spec.ts`) with the synthetic Questrade and Wealthsimple activity fixtures, run by a third user per
 browser: upload, review, fixes saved as rules, untracked accounts linked or tracked, a commit refused for unknown
 exchanges, commit, the same file refused, overlapping and re-uploaded files adding only new rows, discard, and
-another user seeing none of it. After Playwright, `scripts/e2e.sh` checks that every stored original is
+another user seeing none of it; AC-8 (`ac8-holdings.spec.ts`) with `questrade/synthetic_holdings` for user D:
+holdings by account and by security cell by cell, totals that count what they leave out, "No price" and
+"Unknown" instead of 0, the managed account labelled and left out of the combined line, scopes, the security page
+with each ledger row linking to its import row, and another user seeing none of it. After Playwright, `scripts/e2e.sh` checks that every stored original is
 byte-identical to one of the fixture files and read-only (AC-2, D-12).
 
 ## Private smoke test
