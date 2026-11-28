@@ -1,6 +1,7 @@
 // Shared pieces of the holdings and security pages (D-38): unknown values and flags are visible conditions, never 0.
-import type { HeldSecurity, PositionFlag } from "./api";
-import { money, unitCost } from "./format";
+import type { HeldSecurity, MarketValueReason, PositionFlag, Valuation } from "./api";
+import { money, percent, trim, unitCost } from "./format";
+import { formatTime } from "./ImportsPage";
 import { href } from "./route";
 
 export const FLAGS: Record<string, { label: string; explain: string }> = {
@@ -75,15 +76,57 @@ export function UnitCost({ value, currency, held = true }: { value: string | nul
   );
 }
 
-/** Market value until M4: "No price", with the reason on hover; nothing for a closed position. */
-export function MarketValue({ value, reason }: { value: string | null; reason: string }) {
-  if (value !== null) return <>{money(value)}</>;
+const REASON_TEXT: Record<Exclude<MarketValueReason, "">, { label: string; explain: string }> = {
+  no_price: { label: "No price", explain: "The provider has no price for this security yet; it is left out of totals." },
+  no_fx: { label: "No FX rate", explain: "There is no rate to CAD for its price currency yet; it is left out of totals." },
+  missing_history: {
+    label: "Missing history",
+    explain: "More shares left than the ledger holds, so the position is not valued until the history is complete.",
+  },
+};
+
+/** Where a market value comes from (NFR-2, FR-6): price, source and time, and the FX rate used. */
+export function basisText(v: Valuation): string {
+  const price =
+    v.price_source === "principal"
+      ? "valued at principal (GIC)"
+      : `price ${trim(v.price)} ${v.price_currency} from ${v.price_source}` +
+        (v.price_observed_at ? ` at ${formatTime(v.price_observed_at)}` : "") +
+        (v.stale ? " (stale)" : "");
+  const fx = v.fx_rate
+    ? `; FX ${trim(v.fx_rate)} ${v.price_currency}/CAD from ${v.fx_source}` +
+      (v.fx_observed_at ? ` at ${formatTime(v.fx_observed_at)}` : "")
+    : "";
+  return price + fx;
+}
+
+/** A market value in CAD with its basis on hover; amber and tagged when stale; the reason when there is none. */
+export function MarketValue(props: { value: string | null; reason: MarketValueReason; valuation: Valuation | null }) {
+  const { value, reason, valuation } = props;
+  if (value !== null) {
+    const stale = valuation?.stale === true;
+    return (
+      <span className={stale ? "unknown" : undefined} title={valuation ? basisText(valuation) : undefined}>
+        {money(value)}
+        {stale && <span className="tag flag">Stale</span>}
+      </span>
+    );
+  }
   if (!reason) return <span className="sub">–</span>;
   return (
-    <span className="unknown" title="Market data arrives with M4; values without a price are left out of totals.">
-      No price
+    <span className="unknown" title={REASON_TEXT[reason].explain}>
+      {REASON_TEXT[reason].label}
     </span>
   );
+}
+
+/** Unrealized gain: only where a market value exists; "–" otherwise (the market value cell says why). */
+export function Unrealized({ value }: { value: string | null }) {
+  return value === null ? <span className="sub">–</span> : <>{money(value)}</>;
+}
+
+export function Weight({ value }: { value: string | null }) {
+  return value === null ? <span className="sub">–</span> : <>{percent(value)}</>;
 }
 
 export function securityLabel(s: HeldSecurity): string {

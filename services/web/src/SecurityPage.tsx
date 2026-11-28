@@ -1,6 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { api, type LedgerRow, type Position, type SecurityDetail } from "./api";
-import { Amount, FlagTags, MarketValue, UnitCost, flagCodes, flagInfo, securityLabel } from "./holdingsUi";
+import {
+  Amount,
+  FlagTags,
+  MarketValue,
+  UnitCost,
+  Unrealized,
+  basisText,
+  flagCodes,
+  flagInfo,
+  securityLabel,
+} from "./holdingsUi";
 import { money, quantity, trim } from "./format";
 import { href } from "./route";
 
@@ -82,12 +92,27 @@ function Detail({ d }: { d: SecurityDetail }) {
               </dd>
             </div>
             <div>
-              <dt>Market value</dt>
+              <dt>Market value (CAD)</dt>
               <dd>
-                <MarketValue value={null} reason={d.combined.open ? "no_price" : ""} />
+                <MarketValue
+                  value={d.combined.market_value}
+                  reason={d.combined.market_value_reason}
+                  valuation={d.combined.valuation}
+                />
+              </dd>
+            </div>
+            <div>
+              <dt>Unrealized gain (CAD)</dt>
+              <dd>
+                <Unrealized value={d.combined.unrealized_gain_cad} />
               </dd>
             </div>
           </dl>
+          {d.combined.valuation && (
+            <p className="sub" aria-label="Valuation basis">
+              Valued with {basisText(d.combined.valuation)}.
+            </p>
+          )}
           {d.excluded.length > 0 && (
             <p className="sub">
               Excludes {d.excluded.map((e) => e.name).join(", ")}: managed account, reported at account level only.
@@ -118,9 +143,10 @@ function Detail({ d }: { d: SecurityDetail }) {
               <th scope="col" className="num">Average cost</th>
               <th scope="col" className="num">Book value</th>
               <th scope="col" className="num">Book value (CAD)</th>
+              <th scope="col" className="num">Market value (CAD)</th>
+              <th scope="col" className="num">Unrealized (CAD)</th>
               <th scope="col" className="num">Realized gain (CAD)</th>
               <th scope="col" className="num">Income (CAD)</th>
-              <th scope="col" className="num">Market value</th>
             </tr>
           </thead>
           <tbody>
@@ -181,13 +207,16 @@ function PositionRow(props: { name: string; registered: boolean; managed: boolea
         <Amount value={p.book_value_cad} />
       </td>
       <td className="num">
+        <MarketValue value={p.market_value} reason={p.market_value_reason} valuation={p.valuation} />
+      </td>
+      <td className="num">
+        <Unrealized value={p.unrealized_gain_cad} />
+      </td>
+      <td className="num">
         <Amount value={p.realized_gain_cad} />
       </td>
       <td className="num">
         <Amount value={p.income_cad} />
-      </td>
-      <td className="num">
-        <MarketValue value={p.market_value} reason={p.market_value_reason} />
       </td>
     </tr>
   );
@@ -223,6 +252,11 @@ function LedgerLine({ r }: { r: LedgerRow }) {
       <td className="num">{r.price !== null ? trim(r.price) : ""}</td>
       <td className="num nowrap">
         {money(r.net_amount)} <span className="sub">{r.currency}</span>
+        {r.fx_rate && (
+          <div className="sub" title={r.fx_source === "boc" ? "Bank of Canada rate of the trade date (D-6)" : "the broker's rate"}>
+            @ {trim(r.fx_rate)} {r.fx_source === "boc" ? "BoC" : "broker"}
+          </div>
+        )}
       </td>
       <td>
         <Source r={r} />

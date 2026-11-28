@@ -147,19 +147,22 @@ JSON strings; an unknown value is `null` with a flag or reason, never 0 (NFR-4).
     archived accounts only when they have ledger rows. A position: `security` (id, symbol, exchange, name, type,
     trading_currency; symbol null for a GIC), `quantity`, `book_currency`, `avg_cost`, `book_value`, `avg_cost_cad`,
     `book_value_cad`, `realized_gain`, `realized_gain_cad`, `income[]` (per currency), `income_cad`, `market_value`
-    (null until M4) with `market_value_reason` (`no_price`; empty for a closed position), `flags[]` (`{code, date,
-    transaction_id}`), `open`. Listed securities first, by symbol.
+    (CAD now, D-39) with `market_value_reason` (`no_price`, `no_fx`, `missing_history`; empty when valued or closed),
+    `unrealized_gain_cad`, `weight`, `valuation` (price, currency, source, kind, observed_at, stale, fx rate, source,
+    observed_at), `flags[]` (`{code, date, transaction_id}`), `open`. Listed securities first, by symbol.
   - `securities[]`: per security across the scope's self-directed accounts: `quantity`, `book_currency` and native
     `avg_cost`/`book_value` only when every account keeps the same book currency, `avg_cost_cad` (informational,
-    FR-8), `book_value_cad`, `realized_gain_cad`, `income_cad`, `accounts`, `flags[]` (codes), `open`.
+    FR-8), `book_value_cad`, `realized_gain_cad`, `income_cad`, `market_value`, `market_value_reason`,
+    `unrealized_gain_cad`, `weight`, `valuation`, `accounts`, `flags[]` (codes), `open`.
   - `excluded[]`: accounts left out of `securities` (`managed_account`, D-14).
-  - `totals`: `book_value_cad` (open positions), `realized_gain_cad`, `income_cad`, `market_value` (with reason
-    `no_price`), each `{amount, excludes}` where `excludes` counts the positions whose value is unknown; and `cash[]`
-    per currency.
+  - `totals`: `book_value_cad`, `market_value`, `unrealized_gain_cad` (open positions), `realized_gain_cad`,
+    `income_cad`, each `{amount, excludes}` where `excludes` counts the positions whose value is unknown (market value
+    adds reason `no_price` when it excludes any); and `cash[]` per currency.
 - `GET /api/securities/{id}` -> `{security, symbols[], positions[], combined, excluded[], transactions[]}`: every
   symbol period; the user's position per account (managed accounts included, and named in `excluded` for the
   combined line); every `v_ledger` row of the security with `origin`, `corrected` and `source` (file id and name,
-  row number, import id; null for manual and opening rows). A security the user has no ledger row of answers 404
+  row number, import id; null for manual and opening rows) and the rate it is converted with (`fx_rate`,
+  `fx_source` broker or boc). A security the user has no ledger row of answers 404
   like a missing one: the security master is global, positions are not.
 
 ### Accounts (FR-2, D-2, D-14)

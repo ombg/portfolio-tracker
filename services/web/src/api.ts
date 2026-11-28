@@ -226,6 +226,20 @@ export interface PositionFlag {
   transaction_id: string;
 }
 
+export interface Valuation {
+  price: string;
+  price_currency: string;
+  price_source: string; // yahoo | principal
+  price_kind: string; // intraday | close | principal
+  price_observed_at: string | null;
+  stale: boolean | null; // null: market-data could not say
+  fx_rate: string | null;
+  fx_source?: string;
+  fx_observed_at: string | null;
+}
+
+export type MarketValueReason = "" | "no_price" | "no_fx" | "missing_history";
+
 export interface Position {
   security: HeldSecurity;
   quantity: string;
@@ -239,7 +253,10 @@ export interface Position {
   income: Money[];
   income_cad: string | null;
   market_value: string | null;
-  market_value_reason: string;
+  market_value_reason: MarketValueReason;
+  unrealized_gain_cad: string | null;
+  weight: string | null;
+  valuation: Valuation | null;
   flags: PositionFlag[];
   open: boolean;
 }
@@ -270,6 +287,11 @@ export interface CombinedPosition {
   book_value_cad: string | null;
   realized_gain_cad: string | null;
   income_cad: string | null;
+  market_value: string | null;
+  market_value_reason: MarketValueReason;
+  unrealized_gain_cad: string | null;
+  weight: string | null;
+  valuation: Valuation | null;
   accounts: number;
   flags: string[];
   open: boolean;
@@ -298,6 +320,7 @@ export interface HoldingsReport {
     realized_gain_cad: Total;
     income_cad: Total;
     market_value: Total;
+    unrealized_gain_cad: Total;
     cash: Money[];
   };
 }
@@ -315,6 +338,8 @@ export interface LedgerRow {
   net_amount: string;
   currency: string;
   fx_rate_to_cad: string | null;
+  fx_rate: string | null; // the rate the row is converted with
+  fx_source?: "broker" | "boc";
   origin: "import" | "manual" | "opening_balance";
   corrected: boolean;
   source: { file_id: string | null; file_name: string | null; row_no: number | null; import_id: string | null };

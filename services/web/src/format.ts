@@ -46,3 +46,12 @@ export function unitCost(value: string): string {
 export function quantity(value: string): string {
   return group(trim(value));
 }
+
+/** A fraction as a percentage with two places: 0.190840 -> 19.08% */
+export function percent(fraction: string): string {
+  const m = /^(-?)(\d*)(?:\.(\d*))?$/.exec(fraction.trim());
+  if (!m) return fraction;
+  const [, sign, whole, frac = ""] = m;
+  const shifted = `${sign}${whole || "0"}${frac.padEnd(2, "0").slice(0, 2)}.${frac.slice(2) || "0"}`;
+  return `${roundDecimal(shifted, 2)}%`;
+}

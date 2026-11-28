@@ -93,7 +93,7 @@ NEO, `.CN` for CSE; US as is with `.` -> `-` (`BRK.B` -> `BRK-B`). GICs are not 
 A symbol Yahoo does not know is a failed symbol in the run and `missing_price` for valuations, until the user enters
 a price override.
 
-## What M4 fills in (D-38, D-39)
+## What M4 fills in (D-38, D-39; #28)
 Computed when the holdings are read (the daily cache arrives with M5, D-13):
 - Market value = quantity x latest price (override or provider) x FX to CAD (Yahoo intraday during market hours,
   else the latest Bank of Canada rate, or an override), with `basis` {price source, price time, FX source, FX time}.
@@ -104,3 +104,12 @@ Computed when the holdings are read (the daily cache arrives with M5, D-13):
   business day when none), basis `boc` (D-6). The flag then disappears; the rate shows on the row.
 - `cost_unknown`: an in-kind transfer in without a value is valued at that day's close x quantity, labelled
   "estimated" (D-23, D-31).
+- Implementation (#28): portfolio-api reads Bank of Canada daily rates (a rate counts for up to 7 days, covering
+  weekends and holidays), the latest rate to CAD per currency, the latest price per security and, only for in-kind
+  transfers without a value, the close of that day (or the last one in the week before), and passes rates and
+  closes to the replay (`calc.ReplayWith`). A row's own broker rate always wins over the Bank of Canada's.
+  Market values are rounded to 6 places; a position has none, with a reason, when it has no price (`no_price`), no
+  rate to CAD for its price currency (`no_fx`) or a sale without history (`missing_history`). GICs are valued at
+  principal. Staleness comes from market-data's `stale_before`; when market-data does not answer it is unknown
+  (`null`), not false. Weight = market value / the scope's priced market value (managed accounts included); the
+  combined line has a value only when every open position in it has one.

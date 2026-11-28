@@ -75,7 +75,7 @@ func run() error {
 		Handler: httpapi.NewRouter(httpapi.Deps{
 			DB: pool, Auth: auth.NewStore(pool), Signer: signer, CookieSecure: cfg.CookieSecure,
 			Accounts: &accounts.Store{Pool: pool}, Imports: &imports.Store{Pool: pool}, Importer: imp,
-			Holdings: &holdings.Store{Pool: pool}, MarketData: md,
+			Holdings: &holdings.Store{Pool: pool, Market: md}, MarketData: md,
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 	}

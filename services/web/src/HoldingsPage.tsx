@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { TYPE_LABELS, api, type AccountHoldings, type CombinedPosition, type HoldingsReport, type Total } from "./api";
-import { Amount, FlagTags, MarketValue, SecurityLink, UnitCost, flagCodes } from "./holdingsUi";
+import { Amount, FlagTags, MarketValue, SecurityLink, UnitCost, Unrealized, Weight, flagCodes } from "./holdingsUi";
 import { money, quantity } from "./format";
 import { MarketStatusCard } from "./MarketStatus";
 
@@ -107,9 +107,14 @@ function Totals({ report }: { report: HoldingsReport }) {
           <dt>Market value</dt>
           <dd>
             {mv.amount === null ? <span className="unknown">No price</span> : `${money(mv.amount)} CAD`}
-            {mv.reason === "no_price" && <div className="sub">Market data arrives with M4</div>}
+            {mv.excludes > 0 && (
+              <div className="sub">
+                excludes {mv.excludes} {mv.excludes === 1 ? "position" : "positions"} without a value
+              </div>
+            )}
           </dd>
         </div>
+        <TotalItem label="Unrealized gain" total={t.unrealized_gain_cad} what="without a value or cost" />
         <TotalItem label="Realized gain" total={t.realized_gain_cad} what="with an unknown CAD value" />
         <TotalItem label="Income received" total={t.income_cad} what="with an unknown CAD value" />
         <div>
@@ -154,9 +159,11 @@ function AccountSection({ holdings, showClosed }: { holdings: AccountHoldings; s
                 <th scope="col" className="num">Average cost</th>
                 <th scope="col" className="num">Book value</th>
                 <th scope="col" className="num">Book value (CAD)</th>
+                <th scope="col" className="num">Market value (CAD)</th>
+                <th scope="col" className="num">Unrealized (CAD)</th>
+                <th scope="col" className="num">Weight</th>
                 <th scope="col" className="num">Realized gain (CAD)</th>
                 <th scope="col" className="num">Income (CAD)</th>
-                <th scope="col" className="num">Market value</th>
               </tr>
             </thead>
             <tbody>
@@ -178,13 +185,19 @@ function AccountSection({ holdings, showClosed }: { holdings: AccountHoldings; s
                     <Amount value={p.book_value_cad} />
                   </td>
                   <td className="num">
+                    <MarketValue value={p.market_value} reason={p.market_value_reason} valuation={p.valuation} />
+                  </td>
+                  <td className="num">
+                    <Unrealized value={p.unrealized_gain_cad} />
+                  </td>
+                  <td className="num">
+                    <Weight value={p.weight} />
+                  </td>
+                  <td className="num">
                     <Amount value={p.realized_gain_cad} />
                   </td>
                   <td className="num">
                     <Amount value={p.income_cad} />
-                  </td>
-                  <td className="num">
-                    <MarketValue value={p.market_value} reason={p.market_value_reason} />
                   </td>
                 </tr>
               ))}
@@ -230,10 +243,12 @@ function SecurityTable({ report, showClosed }: { report: HoldingsReport; showClo
                   Average cost <span className="sub">(informational)</span>
                 </th>
                 <th scope="col" className="num">Book value (CAD)</th>
+                <th scope="col" className="num">Market value (CAD)</th>
+                <th scope="col" className="num">Unrealized (CAD)</th>
+                <th scope="col" className="num">Weight</th>
                 <th scope="col" className="num">Realized gain (CAD)</th>
                 <th scope="col" className="num">Income (CAD)</th>
                 <th scope="col" className="num">Accounts</th>
-                <th scope="col" className="num">Market value</th>
               </tr>
             </thead>
             <tbody>
@@ -268,15 +283,21 @@ function CombinedRow({ s }: { s: CombinedPosition }) {
         <Amount value={s.book_value_cad} />
       </td>
       <td className="num">
+        <MarketValue value={s.market_value} reason={s.market_value_reason} valuation={s.valuation} />
+      </td>
+      <td className="num">
+        <Unrealized value={s.unrealized_gain_cad} />
+      </td>
+      <td className="num">
+        <Weight value={s.weight} />
+      </td>
+      <td className="num">
         <Amount value={s.realized_gain_cad} />
       </td>
       <td className="num">
         <Amount value={s.income_cad} />
       </td>
       <td className="num">{s.accounts}</td>
-      <td className="num">
-        <MarketValue value={null} reason={s.open ? "no_price" : ""} />
-      </td>
     </tr>
   );
 }

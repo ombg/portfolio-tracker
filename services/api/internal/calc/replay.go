@@ -36,7 +36,18 @@ const (
 	FlagFXMissing        = "fx_missing"
 	FlagCostUnknown      = "cost_unknown"
 	FlagUnsupportedEvent = "unsupported_event"
+	FlagEstimatedCost    = "estimated_cost"
 )
+
+// Options supply market data to the replay (D-39); a nil function means none is known yet.
+type Options struct {
+	// RateToCAD is the rate of one unit of currency in CAD on day (Bank of Canada, previous business day when the
+	// day has none, D-6). Used when a row carries no broker rate, or for another currency than the row's.
+	RateToCAD func(currency string, day time.Time) *decimal.Decimal
+	// Close is a security's close on day (or the last one before it) and its currency, to value an in-kind transfer
+	// that came without a value (D-23, D-31: the cost is then labelled estimated).
+	Close func(securityID string, day time.Time) (*decimal.Decimal, string)
+}
 
 // Flag marks a condition on a position from the row that first raised it.
 type Flag struct {
@@ -139,6 +150,7 @@ type pool struct {
 }
 
 type replay struct {
+	opts  Options
 	pos   map[posKey]*Position
 	cash  map[[2]string]decimal.Decimal
 	pools map[string]*pool
@@ -146,7 +158,10 @@ type replay struct {
 
 // Replay runs the ledger in (trade date, increases first, input order) order. Callers pass rows in a stable order
 // (v_ledger by trade date, import time, source row, id).
-func Replay(txs []Tx) Result {
+func Replay(txs []Tx) Result { return ReplayWith(txs, Options{}) }
+
+// ReplayWith is Replay with market data for rates and closes (D-39).
+func ReplayWith(txs []Tx, opts Options) Result {
 	order := make([]*Tx, len(txs))
 	for i := range txs {
 		order[i] = &txs[i]
@@ -158,7 +173,7 @@ func Replay(txs []Tx) Result {
 		}
 		return increases(a) && !increases(b)
 	})
-	r := &replay{pos: map[posKey]*Position{}, cash: map[[2]string]decimal.Decimal{}, pools: map[string]*pool{}}
+	r := &replay{opts: opts, pos: map[posKey]*Position{}, cash: map[[2]string]decimal.Decimal{}, pools: map[string]*pool{}}
 	for _, t := range order {
 		if carries(t) && out(t) {
 			r.pool(t.GroupID).pendingOut++
@@ -250,7 +265,7 @@ func (r *replay) event(p *Position, t *Tx) {
 			return
 		}
 		proceeds := q.Mul(*t.Price).Sub(t.Commission)
-		native, cad := p.native(proceeds, t), toCAD(proceeds, t)
+		native, cad := r.native(p, proceeds, t.Currency, t), r.toCAD(proceeds, t.Currency, t)
 		if native == nil || cad == nil {
 			p.flag(FlagFXMissing, t)
 		}
@@ -275,9 +290,8 @@ func (r *replay) event(p *Position, t *Tx) {
 			}
 			return
 		}
-		if t.GrossAmount == nil { // D-23: value at the transfer date, known from market data (M4)
-			r.acquire(p, t, q, nil)
-			p.flag(FlagCostUnknown, t)
+		if t.GrossAmount == nil { // D-23: value at the transfer date from that day's close
+			r.acquireEstimated(p, t, q)
 			return
 		}
 		r.acquire(p, t, q, ptr(t.GrossAmount.Abs()))
@@ -295,14 +309,14 @@ func (r *replay) event(p *Position, t *Tx) {
 		}
 	case "RETURN_OF_CAPITAL":
 		amount := t.NetAmount.Abs()
-		p.Cost = sub(p.Cost, p.native(amount, t))
-		p.CostCAD = sub(p.CostCAD, toCAD(amount, t))
+		p.Cost = sub(p.Cost, r.native(p, amount, t.Currency, t))
+		p.CostCAD = sub(p.CostCAD, r.toCAD(amount, t.Currency, t))
 		if p.Cost == nil || p.CostCAD == nil {
 			p.flag(FlagFXMissing, t)
 		}
 	case "DIVIDEND", "DISTRIBUTION", "INTEREST", "WITHHOLDING_TAX":
 		p.Income[t.Currency] = p.Income[t.Currency].Add(t.NetAmount)
-		p.IncomeCAD = add(p.IncomeCAD, toCAD(t.NetAmount, t))
+		p.IncomeCAD = add(p.IncomeCAD, r.toCAD(t.NetAmount, t.Currency, t))
 		if p.IncomeCAD == nil {
 			p.flag(FlagFXMissing, t)
 		}
@@ -314,16 +328,21 @@ func (r *replay) event(p *Position, t *Tx) {
 
 // acquire adds q shares at amount (in the row's currency); a nil amount makes the cost unknown.
 func (r *replay) acquire(p *Position, t *Tx, q decimal.Decimal, amount *decimal.Decimal) {
+	r.acquireIn(p, t, q, amount, t.Currency)
+}
+
+// acquireIn adds q shares at amount in currency (an estimated value may be in the security's currency).
+func (r *replay) acquireIn(p *Position, t *Tx, q decimal.Decimal, amount *decimal.Decimal, currency string) {
 	if p.BookCurrency == "" {
-		p.BookCurrency = t.Currency
+		p.BookCurrency = currency
 	}
 	p.Quantity = p.Quantity.Add(q)
 	if amount == nil {
 		p.Cost, p.CostCAD = nil, nil
 		return
 	}
-	p.Cost = add(p.Cost, p.native(*amount, t))
-	p.CostCAD = add(p.CostCAD, toCAD(*amount, t))
+	p.Cost = add(p.Cost, r.native(p, *amount, currency, t))
+	p.CostCAD = add(p.CostCAD, r.toCAD(*amount, currency, t))
 	if p.Cost == nil || p.CostCAD == nil {
 		p.flag(FlagFXMissing, t)
 	}
@@ -386,8 +405,7 @@ func (r *replay) takeFromPool(p *Position, t *Tx, q decimal.Decimal) {
 		if t.GrossAmount != nil {
 			r.acquire(p, t, q, ptr(t.GrossAmount.Abs()))
 		} else {
-			r.acquire(p, t, q, nil)
-			p.flag(FlagCostUnknown, t)
+			r.acquireEstimated(p, t, q)
 		}
 		return
 	}
@@ -417,8 +435,9 @@ func (r *replay) takeFromPool(p *Position, t *Tx, q decimal.Decimal) {
 	}
 	pl.qty = pl.qty.Sub(q)
 	if cost != nil && p.BookCurrency != pl.currency {
-		cost = nil
-		p.flag(FlagFXMissing, t)
+		if cost = r.convert(*cost, pl.currency, p.BookCurrency, t); cost == nil {
+			p.flag(FlagFXMissing, t)
+		}
 	}
 	p.Quantity = p.Quantity.Add(q)
 	p.Cost, p.CostCAD = add(p.Cost, cost), add(p.CostCAD, costCAD)
@@ -427,30 +446,60 @@ func (r *replay) takeFromPool(p *Position, t *Tx, q decimal.Decimal) {
 	}
 }
 
-// native converts an amount in the row's currency to the position's book currency (calculations.md, D-38).
-func (p *Position) native(amount decimal.Decimal, t *Tx) *decimal.Decimal {
-	switch {
-	case t.Currency == p.BookCurrency:
-		return &amount
-	case t.FXRateToCAD == nil:
-		return nil
-	case p.BookCurrency == "CAD":
-		return ptr(amount.Mul(*t.FXRateToCAD))
-	case t.Currency == "CAD":
-		return ptr(amount.Div(*t.FXRateToCAD))
+// acquireEstimated values shares that arrived without a value at that day's close (D-23, D-31), else leaves the
+// cost unknown until market data has the close.
+func (r *replay) acquireEstimated(p *Position, t *Tx, q decimal.Decimal) {
+	if r.opts.Close != nil {
+		if price, currency := r.opts.Close(t.SecurityID, t.TradeDate); price != nil {
+			r.acquireIn(p, t, q, ptr(price.Mul(q)), currency)
+			p.flag(FlagEstimatedCost, t)
+			return
+		}
+	}
+	r.acquire(p, t, q, nil)
+	p.flag(FlagCostUnknown, t)
+}
+
+// rate is one unit of currency in CAD for row t: CAD is 1; the row's own broker rate for its currency (D-37); else
+// the Bank of Canada rate of the row's date (D-6); nil when none is known yet.
+func (r *replay) rate(currency string, t *Tx) *decimal.Decimal {
+	if currency == "CAD" {
+		one := decimal.NewFromInt(1)
+		return &one
+	}
+	if currency == t.Currency && t.FXRateToCAD != nil {
+		return t.FXRateToCAD
+	}
+	if r.opts.RateToCAD != nil {
+		return r.opts.RateToCAD(currency, t.TradeDate)
 	}
 	return nil
 }
 
-// toCAD converts with the row's own rate; without one the CAD value waits for M4 (Bank of Canada).
-func toCAD(amount decimal.Decimal, t *Tx) *decimal.Decimal {
-	if t.Currency == "CAD" {
+// native converts an amount to the position's book currency (calculations.md, D-38).
+func (r *replay) native(p *Position, amount decimal.Decimal, currency string, t *Tx) *decimal.Decimal {
+	return r.convert(amount, currency, p.BookCurrency, t)
+}
+
+// convert changes currency through CAD with the rates of row t.
+func (r *replay) convert(amount decimal.Decimal, currency, target string, t *Tx) *decimal.Decimal {
+	if currency == target {
 		return &amount
 	}
-	if t.FXRateToCAD == nil {
+	from, to := r.rate(currency, t), r.rate(target, t)
+	if from == nil || to == nil {
 		return nil
 	}
-	return ptr(amount.Mul(*t.FXRateToCAD))
+	return ptr(amount.Mul(*from).Div(*to))
+}
+
+// toCAD converts with the row's rate, else the Bank of Canada rate of its date; nil when neither is known.
+func (r *replay) toCAD(amount decimal.Decimal, currency string, t *Tx) *decimal.Decimal {
+	from := r.rate(currency, t)
+	if from == nil {
+		return nil
+	}
+	return ptr(amount.Mul(*from))
 }
 
 func (p *Position) flag(code string, t *Tx) {
