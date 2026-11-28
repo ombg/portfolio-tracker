@@ -27,8 +27,9 @@ diversification. Runs locally with Docker Compose.
    releases are merged to `main` and tagged `ver-x.y.z` (`CONTRIBUTING.md`).
 
 ## Stack
-Go (portfolio-api: chi, pgx, sqlc, golang-migrate), Python 3.12 (importer: FastAPI, pandas; market-data: yfinance,
-APScheduler), React + TypeScript (Vite, TanStack Query, ECharts), PostgreSQL 16, Caddy.
+Go (portfolio-api: chi, pgx, sqlc, golang-migrate), Python 3.12 (importer: FastAPI, pandas; market-data: httpx for
+the Yahoo chart API and the Bank of Canada Valet API), React + TypeScript (Vite, TanStack Query, ECharts),
+PostgreSQL 16, Caddy.
 
 ## Commands (once scaffolded)
 - `make up` / `make down`: start/stop the stack

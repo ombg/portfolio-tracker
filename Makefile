@@ -1,4 +1,4 @@
-.PHONY: up down test web-check importer-test importer-lock e2e smoke-private generate sqlc-check migrate logs
+.PHONY: up down test web-check importer-test importer-lock market-data-test market-data-lock market-probe e2e smoke-private generate sqlc-check migrate logs
 
 SQLC = docker run --rm -v "$(CURDIR)":/src -w /src/services/api sqlc/sqlc:1.31.1
 
@@ -9,7 +9,7 @@ down:
 	docker compose down
 
 # Parser, calculation, database and API tests. Database tests start Postgres with testcontainers (needs Docker).
-test: sqlc-check web-check importer-test
+test: sqlc-check web-check importer-test market-data-test
 	cd services/api && go vet ./... && go test -count=1 ./...
 
 # Importer tests (pytest in Docker) against a throwaway migrated Postgres (scripts/importer-test.sh).
@@ -17,6 +17,18 @@ importer-test:
 	./scripts/importer-test.sh
 
 # Re-lock importer dependencies with hashes, ignoring releases from the last 14 days.
+# market-data tests against recorded provider responses, without network (scripts/market-data-test.sh).
+market-data-test:
+	./scripts/market-data-test.sh
+
+# Live provider check, by hand only: sends the given Yahoo symbols (public tickers) and the BoC USD series (D-39).
+market-probe:
+	docker build -q --target runtime -t pt-market-data "$(CURDIR)/services/market-data" >/dev/null
+	docker run --rm pt-market-data python -m marketdata.probe $(SYMBOLS)
+
+market-data-lock:
+	docker run --rm -v "$(CURDIR)/services/market-data":/w -w /w python:3.12.16-slim ./lock.sh
+
 importer-lock:
 	docker run --rm -v "$(CURDIR)/services/importer":/w -w /w python:3.12.16-slim ./lock.sh
 

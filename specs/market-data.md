@@ -9,10 +9,19 @@ Interface `Provider` with `quotes(symbols)`, `history(symbol, start, end)`, `met
 
 | Provider | Used for | Notes |
 | --- | --- | --- |
-| Yahoo Finance (`yfinance`) | intraday quotes, daily closes, sector/industry/country, dividend history, intraday FX | free, unofficial, rate-limited; batch symbols; retry with backoff |
+| Yahoo Finance chart API (`httpx`, `marketdata/providers/yahoo.py`) | latest quotes, daily closes, dividend and split history, intraday FX | free, unofficial, rate-limited; one request per symbol, a failure is recorded for that symbol and the run goes on; retry with backoff on 429/5xx; sector/industry metadata (quoteSummary) follows with M7 |
 | Bank of Canada Valet API | official daily USD/CAD and EUR/CAD history | published once per business day; used for transaction-date and historical FX |
 
 Symbol format for Yahoo: TSX `QZGR.TO`, TSX units `AP-UN.TO`, US as is.
+
+Implementation notes (#26): Yahoo is called directly (`/v8/finance/chart/<symbol>`) rather than through `yfinance`,
+so tests replay recorded responses byte for byte, values stay decimals parsed from the JSON text (`yfinance` returns
+pandas floats) and pandas is not needed. Yahoo's numbers are binary floats (27.510000228881836): prices are rounded
+to 4 places, FX rates to 6. Yahoo's daily closes and dividends are split-adjusted; the provider undoes every later
+split so a close matches the shares held that day, as the ledger records them. Bank of Canada rates are observed
+at 16:30 Eastern on their day. Trading days come from the TSX and NYSE holiday rules in `marketdata/calendar.py`
+(weekend observance and announced one-off closures included; early closes count as full days), not a library.
+`make market-probe SYMBOLS="..."` checks the live providers by hand.
 
 ## Schedule (D-3)
 - Every 30 minutes, 09:30-16:30 America/Toronto, on TSX/NYSE trading days (holiday calendar via

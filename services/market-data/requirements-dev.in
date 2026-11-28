@@ -1,0 +1,3 @@
+# Direct test dependencies, locked on top of requirements.txt into requirements-dev.txt (`make market-data-lock`).
+-c requirements.txt
+pytest

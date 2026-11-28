@@ -2,6 +2,14 @@
 
 Releases are tagged `ver-x.y.z` on `main` (`CONTRIBUTING.md`). Newest first.
 
+## Unreleased
+- D-39 confirmed (Q-22): market data in M4.
+- market-data service (`services/market-data`, #26): Yahoo chart API (latest quotes, daily history with dividends
+  and splits, intraday FX) and Bank of Canada daily rates, as decimals parsed from the JSON text; Yahoo's
+  split-adjusted closes turned back into the prices of the shares as held; retries with backoff; per-symbol failures
+  so a run can be Partial; TSX and NYSE trading calendars and the stale rule (D-3). Tests replay recorded responses
+  (`testdata/market/recorded`) without network (`make market-data-test`, part of `make test`); `make market-probe`
+  checks the live providers by hand.
 ## ver-0.3.0 (2026-11-27)
 M3 Holdings & cash: AC-8 passes in the browser (Chromium, Firefox, WebKit).
 - Playwright acceptance tests for holdings (`ac8-holdings.spec.ts`, #25): AC-8 with the new synthetic export

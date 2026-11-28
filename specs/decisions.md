@@ -76,6 +76,9 @@ One portfolio per user in the v1 UI. The `portfolios` table exists so more can b
 - Status per run: Success (all symbols), Partial (some failed), Failed (none). A valuation is Stale when its price
   is older than 2 refresh intervals during market hours, or older than the previous trading day's close otherwise.
 - Missing price: last known price is carried forward and flagged; never zero (NFR-4).
+- Implementation (#26, 2026-11-28, for Oliver's review): Yahoo's chart API is called directly with `httpx` instead
+  of through `yfinance`, so tests replay recorded responses exactly and prices stay decimals from the JSON text
+  (`market-data.md`, implementation notes). The provider interface and the rules above are unchanged.
 
 ### D-4 Time-weighted return
 - Daily chain-linked TWR in the reporting currency. External flows are assumed at the start of the day:
