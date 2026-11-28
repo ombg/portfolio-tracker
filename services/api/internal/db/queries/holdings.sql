@@ -43,3 +43,26 @@ SELECT DISTINCT ON (p.security_id) p.security_id, p.price, p.currency, p.observe
 FROM market.prices p
 WHERE p.security_id = ANY(@security_ids::uuid[])
 ORDER BY p.security_id, p.observed_at DESC;
+
+-- name: DailyRatesToCAD :many
+-- Bank of Canada daily rates to CAD, for rows without a broker rate (D-6, D-39). A few thousand rows at most.
+SELECT r.base, r.rate_date, r.rate, r.source
+FROM market.fx_rates r
+WHERE r.kind = 'daily' AND r.quote = 'CAD'
+ORDER BY r.base, r.rate_date;
+
+-- name: LatestRatesToCAD :many
+-- The newest rate to CAD per currency, intraday or daily, for current values.
+SELECT DISTINCT ON (r.base) r.base, r.rate, r.source, r.observed_at, r.kind
+FROM market.fx_rates r
+WHERE r.quote = 'CAD'
+ORDER BY r.base, r.observed_at DESC;
+
+-- name: CloseOnOrBefore :one
+-- A security's close on a day, or the last one in the week before (a weekend or holiday transfer).
+SELECT p.price, p.currency, p.trade_date
+FROM market.prices p
+WHERE p.security_id = sqlc.arg(security_id) AND p.kind = 'close'
+  AND p.trade_date BETWEEN sqlc.arg(day)::date - 6 AND sqlc.arg(day)::date
+ORDER BY p.trade_date DESC
+LIMIT 1;

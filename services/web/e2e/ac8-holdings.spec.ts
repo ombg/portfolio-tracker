@@ -79,32 +79,33 @@ test("AC-8: holdings by account, with totals that say what they leave out", asyn
 
   const totals = page.getByLabel("Totals");
   await expect(totals).toContainText("Book value1,257.97 CADexcludes 1 position with an unknown cost");
-  await expect(totals).toContainText("Market valueNo priceMarket data arrives with M4");
+  // The recorded provider data has no price for these synthetic tickers: left out and counted, never 0.
+  await expect(totals).toContainText("Market valueNo priceexcludes 4 positions without a value");
   await expect(totals).toContainText("Realized gain73.07 CAD");
   await expect(totals).toContainText("Income received6.00 CAD");
   await expect(totals).toContainText("Cash2,181.10 CAD0.00 USD");
 
-  const header = ["Security", "Quantity", "Average cost", "Book value", "Book value (CAD)", "Realized gain (CAD)",
-    "Income (CAD)", "Market value"];
+  const header = ["Security", "Quantity", "Average cost", "Book value", "Book value (CAD)", "Market value (CAD)",
+    "Unrealized (CAD)", "Weight", "Realized gain (CAD)", "Income (CAD)"];
   const tfsa = page.getByRole("table", { name: "Holdings in E2E D TFSA" });
   await expect(tfsa.locator("thead th")).toHaveText(header);
   await expectRows(tfsa, [
-    [QZHG, "60", "10.0495 CAD", "602.97 CAD", "602.97", "73.07", "6.00", "No price"],
-    [ZZHU, "5", "20.00 USD", "100.00 USD", "Unknown", "0.00", "0.00", "No price"],
+    [QZHG, "60", "10.0495 CAD", "602.97 CAD", "602.97", "No price", "–", "–", "73.07", "6.00"],
+    [ZZHU, "5", "20.00 USD", "100.00 USD", "Unknown", "No price", "–", "–", "0.00", "0.00"],
   ]);
   // A USD purchase without a broker rate: the CAD value is unknown and says why, not 0.
   await expect(bodyRows(tfsa).nth(1).locator(".tag.flag")).toHaveText("FX rate missing");
   await expect(page.getByLabel("Cash in E2E D TFSA")).toHaveText("Cash: 1,336.10 CAD · 0.00 USD");
 
   await expectRows(page.getByRole("table", { name: "Holdings in E2E D FHSA" }), [
-    [QZHG, "50", "11.00 CAD", "550.00 CAD", "550.00", "0.00", "0.00", "No price"],
+    [QZHG, "50", "11.00 CAD", "550.00 CAD", "550.00", "No price", "–", "–", "0.00", "0.00"],
   ]);
   await expect(page.getByLabel("Cash in E2E D FHSA")).toHaveText("Cash: 450.00 CAD");
 
   const managed = page.getByRole("region", { name: "Account E2E D Managed RRSP" });
   await expect(managed.getByRole("heading")).toContainText("Managed, account-level only");
   await expectRows(page.getByRole("table", { name: "Holdings in E2E D Managed RRSP" }), [
-    [QZHG, "10", "10.50 CAD", "105.00 CAD", "105.00", "0.00", "0.00", "No price"],
+    [QZHG, "10", "10.50 CAD", "105.00 CAD", "105.00", "No price", "–", "–", "0.00", "0.00"],
   ]);
 });
 
@@ -115,8 +116,8 @@ test("AC-8: combined exposure by security leaves the managed account out and say
   await expect(page.getByRole("button", { name: "By security" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByText("Excludes E2E D Managed RRSP: managed account, reported at account level only.")).toBeVisible();
   await expectRows(page.getByRole("table", { name: "Holdings by security" }), [
-    [QZHG, "110", "10.4815 CAD", "1,152.97", "73.07", "6.00", "2", "No price"],
-    [ZZHU, "5", "20.00 USD", "Unknown", "0.00", "0.00", "1", "No price"],
+    [QZHG, "110", "10.4815 CAD", "1,152.97", "No price", "–", "–", "73.07", "6.00", "2"],
+    [ZZHU, "5", "20.00 USD", "Unknown", "No price", "–", "–", "0.00", "0.00", "1"],
   ]);
 });
 
@@ -147,10 +148,10 @@ test("AC-8: the security page shows every account and traces each row to its sou
   await expect(page.getByText("Excludes E2E D Managed RRSP: managed account, reported at account level only.")).toBeVisible();
 
   await expectRows(page.getByRole("table", { name: "Positions by account" }), [
-    ["E2E D FHSARegistered", "50", "11.00 CAD", "550.00 CAD", "550.00", "0.00", "0.00", "No price"],
-    ["E2E D Managed RRSPRegistered · managed, account-level only", "10", "10.50 CAD", "105.00 CAD", "105.00", "0.00",
-      "0.00", "No price"],
-    ["E2E D TFSARegistered", "60", "10.0495 CAD", "602.97 CAD", "602.97", "73.07", "6.00", "No price"],
+    ["E2E D FHSARegistered", "50", "11.00 CAD", "550.00 CAD", "550.00", "No price", "–", "0.00", "0.00"],
+    ["E2E D Managed RRSPRegistered · managed, account-level only", "10", "10.50 CAD", "105.00 CAD", "105.00",
+      "No price", "–", "0.00", "0.00"],
+    ["E2E D TFSARegistered", "60", "10.0495 CAD", "602.97 CAD", "602.97", "No price", "–", "73.07", "6.00"],
   ]);
 
   const ledger = page.getByRole("table", { name: "Ledger rows" });

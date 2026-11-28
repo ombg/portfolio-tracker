@@ -13,6 +13,74 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+const closeOnOrBefore = `-- name: CloseOnOrBefore :one
+SELECT p.price, p.currency, p.trade_date
+FROM market.prices p
+WHERE p.security_id = $1 AND p.kind = 'close'
+  AND p.trade_date BETWEEN $2::date - 6 AND $2::date
+ORDER BY p.trade_date DESC
+LIMIT 1
+`
+
+type CloseOnOrBeforeParams struct {
+	SecurityID uuid.UUID
+	Day        time.Time
+}
+
+type CloseOnOrBeforeRow struct {
+	Price     decimal.Decimal
+	Currency  string
+	TradeDate time.Time
+}
+
+// A security's close on a day, or the last one in the week before (a weekend or holiday transfer).
+func (q *Queries) CloseOnOrBefore(ctx context.Context, arg CloseOnOrBeforeParams) (CloseOnOrBeforeRow, error) {
+	row := q.db.QueryRow(ctx, closeOnOrBefore, arg.SecurityID, arg.Day)
+	var i CloseOnOrBeforeRow
+	err := row.Scan(&i.Price, &i.Currency, &i.TradeDate)
+	return i, err
+}
+
+const dailyRatesToCAD = `-- name: DailyRatesToCAD :many
+SELECT r.base, r.rate_date, r.rate, r.source
+FROM market.fx_rates r
+WHERE r.kind = 'daily' AND r.quote = 'CAD'
+ORDER BY r.base, r.rate_date
+`
+
+type DailyRatesToCADRow struct {
+	Base     string
+	RateDate time.Time
+	Rate     decimal.Decimal
+	Source   string
+}
+
+// Bank of Canada daily rates to CAD, for rows without a broker rate (D-6, D-39). A few thousand rows at most.
+func (q *Queries) DailyRatesToCAD(ctx context.Context) ([]DailyRatesToCADRow, error) {
+	rows, err := q.db.Query(ctx, dailyRatesToCAD)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DailyRatesToCADRow{}
+	for rows.Next() {
+		var i DailyRatesToCADRow
+		if err := rows.Scan(
+			&i.Base,
+			&i.RateDate,
+			&i.Rate,
+			&i.Source,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const heldListings = `-- name: HeldListings :many
 SELECT ss.security_id, ss.symbol, ss.exchange, ss.valid_from, ss.valid_to
 FROM core.security_symbols ss
@@ -126,6 +194,48 @@ func (q *Queries) LatestPrices(ctx context.Context, securityIds []uuid.UUID) ([]
 			&i.Currency,
 			&i.ObservedAt,
 			&i.Source,
+			&i.Kind,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const latestRatesToCAD = `-- name: LatestRatesToCAD :many
+SELECT DISTINCT ON (r.base) r.base, r.rate, r.source, r.observed_at, r.kind
+FROM market.fx_rates r
+WHERE r.quote = 'CAD'
+ORDER BY r.base, r.observed_at DESC
+`
+
+type LatestRatesToCADRow struct {
+	Base       string
+	Rate       decimal.Decimal
+	Source     string
+	ObservedAt time.Time
+	Kind       string
+}
+
+// The newest rate to CAD per currency, intraday or daily, for current values.
+func (q *Queries) LatestRatesToCAD(ctx context.Context) ([]LatestRatesToCADRow, error) {
+	rows, err := q.db.Query(ctx, latestRatesToCAD)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []LatestRatesToCADRow{}
+	for rows.Next() {
+		var i LatestRatesToCADRow
+		if err := rows.Scan(
+			&i.Base,
+			&i.Rate,
+			&i.Source,
+			&i.ObservedAt,
 			&i.Kind,
 		); err != nil {
 			return nil, err

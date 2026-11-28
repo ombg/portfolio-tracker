@@ -3,6 +3,12 @@
 Releases are tagged `ver-x.y.z` on `main` (`CONTRIBUTING.md`). Newest first.
 
 ## Unreleased
+- Market values (#28, D-39): holdings and the security page show market value in CAD, unrealized gain and weight,
+  each value with its basis on hover (price, source, time; FX rate, source, time), amber and tagged when stale; a
+  position without a value says why (no price, no FX rate, missing history); GICs at principal. Totals count what
+  they leave out. USD rows without a broker rate take the Bank of Canada rate of their date, and in-kind transfers
+  without a value take that day's close (labelled estimated cost), so M3's unknown CAD values and costs fill in. The
+  page is wider (1360 px) for the extra columns.
 - Market data status (#28, FR-6, AC-12): `GET /api/market/status` and a status card on Holdings and on the new
   Market data page (nav "Market data"): Up to date, Partial, Failed, Stale, turned off, not reachable or no run yet;
   last successful refresh, market open or "Market closed - last close <date>", next refresh, and the caller's stale

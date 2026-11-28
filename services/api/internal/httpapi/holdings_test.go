@@ -33,7 +33,10 @@ func newHoldingsHarness(t *testing.T) *holdingsHarness {
 	ih := newImportHarness(t)
 	ih.deps.Holdings = &holdings.Store{Pool: ih.store.Pool}
 	ih.router = NewRouter(ih.deps)
-	return &holdingsHarness{importHarness: ih}
+	h := &holdingsHarness{importHarness: ih}
+	// Market data is global and outlives the per-test truncate of users.
+	h.exec("TRUNCATE market.prices, market.fx_rates")
+	return h
 }
 
 func (h *holdingsHarness) exec(q string, args ...any) {
@@ -179,7 +182,9 @@ func TestHoldingsByAccountAndSecurity(t *testing.T) {
 	// Totals never turn a missing market value into 0 (NFR-4).
 	tot := rep.Totals
 	dEq(t, "total book CAD", tot.BookValueCAD.Amount, "925")
-	if tot.MarketValue.Amount != nil || tot.MarketValue.Excludes != 4 || tot.MarketValue.Reason != holdings.NoPrice {
+	// No prices stored: only the GIC has a value (principal, D-26); the 4 others are left out and counted.
+	if tot.MarketValue.Amount == nil || !tot.MarketValue.Amount.Equal(decimal.RequireFromString("500")) ||
+		tot.MarketValue.Excludes != 3 || tot.MarketValue.Reason != holdings.NoPrice {
 		t.Errorf("market value total %+v", tot.MarketValue)
 	}
 	if len(tot.Cash) != 1 || !tot.Cash[0].Amount.Equal(decimal.RequireFromString("476.5")) {

@@ -19,10 +19,8 @@ import (
 	"github.com/ombg/portfolio-tracker/services/api/internal/calc"
 	"github.com/ombg/portfolio-tracker/services/api/internal/db"
 	"github.com/ombg/portfolio-tracker/services/api/internal/db/dbq"
+	"github.com/ombg/portfolio-tracker/services/api/internal/marketdata"
 )
-
-// NoPrice is the market-value reason until market data exists (M4, D-38).
-const NoPrice = "no_price"
 
 // Error is a refusal with an HTTP status and a stable code.
 type Error struct {
@@ -120,8 +118,11 @@ type Position struct {
 	RealizedGainCAD   *decimal.Decimal `json:"realized_gain_cad"`
 	Income            []Money          `json:"income"`
 	IncomeCAD         *decimal.Decimal `json:"income_cad"`
-	MarketValue       *decimal.Decimal `json:"market_value"`
+	MarketValue       *decimal.Decimal `json:"market_value"` // CAD, now (D-39)
 	MarketValueReason string           `json:"market_value_reason"`
+	UnrealizedGainCAD *decimal.Decimal `json:"unrealized_gain_cad"`
+	Weight            *decimal.Decimal `json:"weight"` // share of the scope's priced market value
+	Valuation         *Basis           `json:"valuation"`
 	Flags             []Flag           `json:"flags"`
 	Open              bool             `json:"open"`
 }
@@ -135,18 +136,23 @@ type AccountHoldings struct {
 // Combined is one security across the scope's accounts. The average cost is informational (FR-8); the native
 // figures appear only when every account keeps the same book currency.
 type Combined struct {
-	Security        Security         `json:"security"`
-	Quantity        decimal.Decimal  `json:"quantity"`
-	BookCurrency    *string          `json:"book_currency"`
-	AvgCost         *decimal.Decimal `json:"avg_cost"`
-	BookValue       *decimal.Decimal `json:"book_value"`
-	AvgCostCAD      *decimal.Decimal `json:"avg_cost_cad"`
-	BookValueCAD    *decimal.Decimal `json:"book_value_cad"`
-	RealizedGainCAD *decimal.Decimal `json:"realized_gain_cad"`
-	IncomeCAD       *decimal.Decimal `json:"income_cad"`
-	Accounts        int              `json:"accounts"`
-	Flags           []string         `json:"flags"`
-	Open            bool             `json:"open"`
+	Security          Security         `json:"security"`
+	Quantity          decimal.Decimal  `json:"quantity"`
+	BookCurrency      *string          `json:"book_currency"`
+	AvgCost           *decimal.Decimal `json:"avg_cost"`
+	BookValue         *decimal.Decimal `json:"book_value"`
+	AvgCostCAD        *decimal.Decimal `json:"avg_cost_cad"`
+	BookValueCAD      *decimal.Decimal `json:"book_value_cad"`
+	RealizedGainCAD   *decimal.Decimal `json:"realized_gain_cad"`
+	IncomeCAD         *decimal.Decimal `json:"income_cad"`
+	MarketValue       *decimal.Decimal `json:"market_value"`
+	MarketValueReason string           `json:"market_value_reason"`
+	UnrealizedGainCAD *decimal.Decimal `json:"unrealized_gain_cad"`
+	Weight            *decimal.Decimal `json:"weight"`
+	Valuation         *Basis           `json:"valuation"`
+	Accounts          int              `json:"accounts"`
+	Flags             []string         `json:"flags"`
+	Open              bool             `json:"open"`
 }
 
 // Excluded names an account left out of the security view and why.
@@ -164,11 +170,12 @@ type Total struct {
 }
 
 type Totals struct {
-	BookValueCAD    Total   `json:"book_value_cad"`
-	RealizedGainCAD Total   `json:"realized_gain_cad"`
-	IncomeCAD       Total   `json:"income_cad"`
-	MarketValue     Total   `json:"market_value"`
-	Cash            []Money `json:"cash"`
+	BookValueCAD      Total   `json:"book_value_cad"`
+	RealizedGainCAD   Total   `json:"realized_gain_cad"`
+	IncomeCAD         Total   `json:"income_cad"`
+	MarketValue       Total   `json:"market_value"`
+	UnrealizedGainCAD Total   `json:"unrealized_gain_cad"`
+	Cash              []Money `json:"cash"`
 }
 
 // Report is GET /api/holdings.
@@ -181,7 +188,10 @@ type Report struct {
 	Totals     Totals            `json:"totals"`
 }
 
-type Store struct{ Pool *pgxpool.Pool }
+type Store struct {
+	Pool   *pgxpool.Pool
+	Market *marketdata.Client // stale cut-offs (D-3); nil or unavailable leaves staleness unknown
+}
 
 // state is everything one request needs, read in one RLS transaction.
 type state struct {
@@ -191,11 +201,15 @@ type state struct {
 	listings   map[uuid.UUID][]dbq.HeldListingsRow
 	result     calc.Result
 	lastDate   map[uuid.UUID]time.Time // per account
+	market     *inputs
 }
 
 func (s *Store) load(ctx context.Context, userID uuid.UUID, extra func(q *dbq.Queries) error) (*state, error) {
 	st := &state{byID: map[uuid.UUID]Account{}, securities: map[uuid.UUID]Security{},
-		listings: map[uuid.UUID][]dbq.HeldListingsRow{}, lastDate: map[uuid.UUID]time.Time{}}
+		listings: map[uuid.UUID][]dbq.HeldListingsRow{}, lastDate: map[uuid.UUID]time.Time{}, market: newInputs()}
+	if md, err := s.Market.Status(ctx); err == nil {
+		st.market.staleBefore = md.StaleBefore
+	}
 	err := db.WithUser(ctx, s.Pool, userID, func(tx pgx.Tx) error {
 		q := dbq.New(tx)
 		accts, err := q.ListAccounts(ctx, true)
@@ -209,18 +223,6 @@ func (s *Store) load(ctx context.Context, userID uuid.UUID, extra func(q *dbq.Qu
 			st.accounts = append(st.accounts, acct)
 			st.byID[acct.ID] = acct
 		}
-		rows, err := q.LedgerForReplay(ctx)
-		if err != nil {
-			return fmt.Errorf("ledger: %w", err)
-		}
-		txs := make([]calc.Tx, 0, len(rows))
-		for _, r := range rows {
-			txs = append(txs, toTx(r))
-			if r.TradeDate.After(st.lastDate[r.AccountID]) {
-				st.lastDate[r.AccountID] = r.TradeDate
-			}
-		}
-		st.result = calc.Replay(txs)
 		secs, err := q.HeldSecurities(ctx)
 		if err != nil {
 			return fmt.Errorf("securities: %w", err)
@@ -232,19 +234,72 @@ func (s *Store) load(ctx context.Context, userID uuid.UUID, extra func(q *dbq.Qu
 		for _, l := range listings {
 			st.listings[l.SecurityID] = append(st.listings[l.SecurityID], l)
 		}
+		ids := make([]uuid.UUID, 0, len(secs))
 		for _, sec := range secs {
 			v := Security{ID: sec.ID, Name: sec.Name, Type: sec.SecurityType, TradingCurrency: sec.TradingCurrency}
 			if cur := current(st.listings[sec.ID]); cur != nil {
 				v.Symbol, v.Exchange = &cur.Symbol, &cur.Exchange
 			}
 			st.securities[sec.ID] = v
+			ids = append(ids, sec.ID)
 		}
+		if err := st.readMarket(ctx, q, ids); err != nil {
+			return err
+		}
+		rows, err := q.LedgerForReplay(ctx)
+		if err != nil {
+			return fmt.Errorf("ledger: %w", err)
+		}
+		txs := make([]calc.Tx, 0, len(rows))
+		for _, r := range rows {
+			txs = append(txs, toTx(r))
+			if r.TradeDate.After(st.lastDate[r.AccountID]) {
+				st.lastDate[r.AccountID] = r.TradeDate
+			}
+			// An in-kind transfer in without a value is valued at that day's close (D-23, D-31).
+			if r.Type == "TRANSFER_IN" && r.SecurityID != nil && !r.GrossAmount.Valid {
+				c, err := q.CloseOnOrBefore(ctx, dbq.CloseOnOrBeforeParams{SecurityID: *r.SecurityID, Day: r.TradeDate})
+				if err == nil {
+					st.market.closes[closeKey{r.SecurityID.String(), r.TradeDate}] = closeVal{c.Price, c.Currency}
+				} else if !errors.Is(err, pgx.ErrNoRows) {
+					return fmt.Errorf("close: %w", err)
+				}
+			}
+		}
+		st.result = calc.ReplayWith(txs, st.market.options())
 		if extra != nil {
 			return extra(q)
 		}
 		return nil
 	})
 	return st, err
+}
+
+// readMarket reads rates and the latest prices of the user's securities (market data is global, D-39).
+func (st *state) readMarket(ctx context.Context, q *dbq.Queries, ids []uuid.UUID) error {
+	daily, err := q.DailyRatesToCAD(ctx)
+	if err != nil {
+		return fmt.Errorf("daily rates: %w", err)
+	}
+	for _, r := range daily {
+		st.market.daily[r.Base] = append(st.market.daily[r.Base], r)
+	}
+	latest, err := q.LatestRatesToCAD(ctx)
+	if err != nil {
+		return fmt.Errorf("latest rates: %w", err)
+	}
+	for _, r := range latest {
+		st.market.latestFX[r.Base] = r
+	}
+	prices, err := q.LatestPrices(ctx, ids)
+	if err != nil {
+		return fmt.Errorf("latest prices: %w", err)
+	}
+	for _, r := range prices {
+		st.market.prices[r.SecurityID] = LatestPrice{Price: r.Price, Currency: r.Currency, ObservedAt: r.ObservedAt,
+			Source: r.Source, Kind: r.Kind}
+	}
+	return nil
 }
 
 // current is the open symbol period (the latest-starting one), else the period that ended last.
@@ -306,7 +361,12 @@ func (st *state) position(p *calc.Position) Position {
 	out := Position{Security: st.securities[uuid.MustParse(p.SecurityID)], Quantity: p.Quantity,
 		BookCurrency: p.BookCurrency, AvgCost: p.AvgCost(), BookValue: p.Cost, AvgCostCAD: p.AvgCostCAD(),
 		BookValueCAD: p.CostCAD, RealizedGain: p.Realized, RealizedGainCAD: p.RealizedCAD, IncomeCAD: p.IncomeCAD,
-		MarketValueReason: NoPrice, Open: p.Open(), Income: []Money{}, Flags: []Flag{}}
+		Open: p.Open(), Income: []Money{}, Flags: []Flag{}}
+	out.MarketValue, out.MarketValueReason, out.Valuation = st.value(p)
+	if out.MarketValue != nil && out.BookValueCAD != nil {
+		u := out.MarketValue.Sub(*out.BookValueCAD)
+		out.UnrealizedGainCAD = &u
+	}
 	for cur, amt := range p.Income {
 		out.Income = append(out.Income, Money{Currency: cur, Amount: amt})
 	}
@@ -314,9 +374,6 @@ func (st *state) position(p *calc.Position) Position {
 	for _, f := range p.Flags {
 		out.Flags = append(out.Flags, Flag{Code: f.Code, Date: f.Date.Format(time.DateOnly),
 			TransactionID: uuid.MustParse(f.TxID)})
-	}
-	if !out.Open { // nothing held: no market value to miss
-		out.MarketValueReason = ""
 	}
 	return out
 }
@@ -366,12 +423,20 @@ func (s *Store) Holdings(ctx context.Context, userID uuid.UUID, sc Scope) (*Repo
 		if ah == nil {
 			continue
 		}
-		pos := st.position(p)
-		ah.Positions = append(ah.Positions, pos)
-		rep.Totals.add(pos)
+		ah.Positions = append(ah.Positions, st.position(p))
 		if !ah.Account.managed() {
 			combined = append(combined, p)
 		}
+	}
+	var all []*Position
+	for i := range rep.Accounts {
+		for j := range rep.Accounts[i].Positions {
+			all = append(all, &rep.Accounts[i].Positions[j])
+		}
+	}
+	weigh(all)
+	for _, p := range all {
+		rep.Totals.add(*p)
 	}
 	cash := map[string]decimal.Decimal{}
 	for _, c := range st.result.Cash {
@@ -388,7 +453,20 @@ func (s *Store) Holdings(ctx context.Context, userID uuid.UUID, sc Scope) (*Repo
 		sortPositions(rep.Accounts[i].Positions)
 	}
 	rep.Securities = st.combine(combined)
-	rep.Totals.MarketValue.Reason = NoPrice
+	// The combined line's weight is against the same total as the positions (managed accounts included).
+	total := decimal.Zero
+	if rep.Totals.MarketValue.Amount != nil {
+		total = *rep.Totals.MarketValue.Amount
+	}
+	for i := range rep.Securities {
+		if c := &rep.Securities[i]; c.MarketValue != nil && total.IsPositive() {
+			w := c.MarketValue.DivRound(total, valuePlaces)
+			c.Weight = &w
+		}
+	}
+	if rep.Totals.MarketValue.Excludes > 0 {
+		rep.Totals.MarketValue.Reason = NoPrice
+	}
 	return rep, nil
 }
 
@@ -419,6 +497,7 @@ func (t *Totals) add(p Position) {
 	if p.Open {
 		sum(&t.BookValueCAD, p.BookValueCAD)
 		sum(&t.MarketValue, p.MarketValue)
+		sum(&t.UnrealizedGainCAD, p.UnrealizedGainCAD)
 	}
 	sum(&t.RealizedGainCAD, p.RealizedGainCAD)
 	sum(&t.IncomeCAD, p.IncomeCAD)
@@ -431,6 +510,7 @@ func (st *state) combine(ps []*calc.Position) []Combined {
 		currencies map[string]bool
 		cost       *decimal.Decimal
 		flags      map[string]bool
+		valued     bool // every open position has a market value so far
 	}
 	groups := map[string]*acc{}
 	var order []string
@@ -440,17 +520,30 @@ func (st *state) combine(ps []*calc.Position) []Combined {
 			zero := decimal.Zero
 			g = &acc{c: Combined{Security: st.securities[uuid.MustParse(p.SecurityID)], Flags: []string{},
 				BookValueCAD: ptr(zero), RealizedGainCAD: ptr(zero), IncomeCAD: ptr(zero)},
-				currencies: map[string]bool{}, cost: ptr(zero), flags: map[string]bool{}}
+				currencies: map[string]bool{}, cost: ptr(zero), flags: map[string]bool{}, valued: true}
 			groups[p.SecurityID] = g
 			order = append(order, p.SecurityID)
 		}
 		g.c.Accounts++
 		g.c.Quantity = g.c.Quantity.Add(p.Quantity)
 		g.c.Open = g.c.Open || p.Open()
-		if p.Open() { // a closed position carries no cost into the combined line
+		if p.Open() { // a closed position carries no cost or value into the combined line
 			g.currencies[p.BookCurrency] = true
 			g.cost = add(g.cost, p.Cost)
 			g.c.BookValueCAD = add(g.c.BookValueCAD, p.CostCAD)
+			mv, reason, basis := st.value(p)
+			switch {
+			case mv == nil:
+				g.valued, g.c.MarketValue, g.c.MarketValueReason = false, nil, reason
+			case g.valued:
+				if g.c.MarketValue == nil {
+					g.c.MarketValue = ptr(decimal.Zero)
+				}
+				g.c.MarketValue = add(g.c.MarketValue, mv)
+			}
+			if g.c.Valuation == nil {
+				g.c.Valuation = basis
+			}
 		}
 		g.c.RealizedGainCAD = add(g.c.RealizedGainCAD, p.RealizedCAD)
 		g.c.IncomeCAD = add(g.c.IncomeCAD, p.IncomeCAD)
@@ -473,6 +566,10 @@ func (st *state) combine(ps []*calc.Position) []Combined {
 			g.c.BookValueCAD = ptr(decimal.Zero)
 		}
 		g.c.AvgCostCAD = avg(g.c.BookValueCAD, g.c.Quantity)
+		if g.c.MarketValue != nil && g.c.BookValueCAD != nil {
+			u := g.c.MarketValue.Sub(*g.c.BookValueCAD)
+			g.c.UnrealizedGainCAD = &u
+		}
 		for f := range g.flags {
 			g.c.Flags = append(g.c.Flags, f)
 		}
@@ -538,10 +635,13 @@ type LedgerRow struct {
 	GrossAmount *decimal.Decimal `json:"gross_amount"`
 	NetAmount   decimal.Decimal  `json:"net_amount"`
 	Currency    string           `json:"currency"`
-	FXRateToCAD *decimal.Decimal `json:"fx_rate_to_cad"`
-	Origin      string           `json:"origin"`
-	Corrected   bool             `json:"corrected"`
-	Source      Source           `json:"source"`
+	FXRateToCAD *decimal.Decimal `json:"fx_rate_to_cad"` // as stored (the broker's)
+	// The rate the replay converts this row with and its source: broker, or boc when the row had none (D-6, D-39).
+	FXRate    *decimal.Decimal `json:"fx_rate"`
+	FXSource  string           `json:"fx_source,omitempty"`
+	Origin    string           `json:"origin"`
+	Corrected bool             `json:"corrected"`
+	Source    Source           `json:"source"`
 }
 
 // SecurityDetail is GET /api/securities/{id}.
@@ -604,7 +704,8 @@ func (s *Store) Security(ctx context.Context, userID, securityID uuid.UUID) (*Se
 	}
 	for _, r := range ledger {
 		a := st.byID[r.AccountID]
-		out.Transactions = append(out.Transactions, LedgerRow{ID: r.ID, Account: AccountRef{ID: a.ID, Name: a.Name},
+		rate, source := st.rowRate(r.Currency, opt(r.FxRateToCad), r.TradeDate)
+		out.Transactions = append(out.Transactions, LedgerRow{FXRate: rate, FXSource: source, ID: r.ID, Account: AccountRef{ID: a.ID, Name: a.Name},
 			Type: r.Type, TradeDate: r.TradeDate.Format(time.DateOnly), Quantity: opt(r.Quantity),
 			SplitRatio: opt(r.SplitRatio), Price: opt(r.Price), Commission: r.Commission, GrossAmount: opt(r.GrossAmount),
 			NetAmount: r.NetAmount, Currency: r.Currency, FXRateToCAD: opt(r.FxRateToCad), Origin: r.Origin,
@@ -648,9 +749,7 @@ type LatestPrice struct {
 
 // Securities returns every security in the user's ledger, with open ones marked, and their latest prices.
 func (s *Store) Securities(ctx context.Context, userID uuid.UUID) ([]HeldSecurity, map[uuid.UUID]LatestPrice, error) {
-	prices := map[uuid.UUID]LatestPrice{}
-	var out []HeldSecurity
-	st, err := s.load(ctx, userID, func(q *dbq.Queries) error { return nil })
+	st, err := s.load(ctx, userID, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -660,22 +759,10 @@ func (s *Store) Securities(ctx context.Context, userID uuid.UUID) ([]HeldSecurit
 			open[uuid.MustParse(p.SecurityID)] = true
 		}
 	}
-	ids := make([]uuid.UUID, 0, len(st.securities))
+	out := make([]HeldSecurity, 0, len(st.securities))
 	for id, sec := range st.securities {
 		out = append(out, HeldSecurity{Security: sec, Open: open[id]})
-		ids = append(ids, id)
 	}
 	sort.Slice(out, func(i, j int) bool { return label(out[i].Security) < label(out[j].Security) })
-	err = db.WithUser(ctx, s.Pool, userID, func(tx pgx.Tx) error {
-		rows, err := dbq.New(tx).LatestPrices(ctx, ids)
-		if err != nil {
-			return fmt.Errorf("latest prices: %w", err)
-		}
-		for _, r := range rows {
-			prices[r.SecurityID] = LatestPrice{Price: r.Price, Currency: r.Currency, ObservedAt: r.ObservedAt,
-				Source: r.Source, Kind: r.Kind}
-		}
-		return nil
-	})
-	return out, prices, err
+	return out, st.market.prices, nil
 }

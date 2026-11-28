@@ -63,6 +63,7 @@ func TestMarketStatusIsSeenThroughTheCallersSecurities(t *testing.T) {
 	body, code := runningStatus, http.StatusOK
 	srv := fakeMarketData(t, &body, &code)
 	h.deps.MarketData = marketdata.New(srv.URL, "synthetic-token")
+	h.deps.Holdings.Market = h.deps.MarketData
 	h.router = NewRouter(h.deps)
 	get := func(c *http.Cookie) market.Status {
 		rec := h.do(http.MethodGet, "/api/market/status", "", c)

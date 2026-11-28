@@ -136,3 +136,74 @@ func TestSplitDeltaBelowZeroIsFlagged(t *testing.T) {
 		t.Fatalf("qty %s cost %v flags %v", p.Quantity, p.Cost, p.Flags)
 	}
 }
+
+func boc(rates map[string]string) func(string, time.Time) *decimal.Decimal {
+	return func(cur string, day time.Time) *decimal.Decimal {
+		if v, ok := rates[cur+" "+day.Format(time.DateOnly)]; ok {
+			return d(v)
+		}
+		return nil
+	}
+}
+
+func TestBankOfCanadaRatesFillRowsWithoutABrokerRate(t *testing.T) {
+	// D-39: the USD row without a rate takes the BoC rate of its date; the row with a broker rate keeps it.
+	txs := []Tx{
+		{ID: "b1", AccountID: "A", Type: "BUY", TradeDate: day("2025-01-06"), SecurityID: "U", Quantity: d("10"),
+			Price: d("100"), NetAmount: *d("-1000"), Currency: "USD"},
+		{ID: "b2", AccountID: "A", Type: "BUY", TradeDate: day("2025-01-07"), SecurityID: "U", Quantity: d("10"),
+			Price: d("110"), NetAmount: *d("-1100"), Currency: "USD", FXRateToCAD: d("1.50")},
+		{ID: "dv", AccountID: "A", Type: "DIVIDEND", TradeDate: day("2025-01-08"), SecurityID: "U",
+			NetAmount: *d("2"), Currency: "USD"},
+	}
+	opts := Options{RateToCAD: boc(map[string]string{"USD 2025-01-06": "1.4", "USD 2025-01-07": "1.43",
+		"USD 2025-01-08": "1.45"})}
+	p := find(t, ReplayWith(txs, opts), "A", "U")
+	// 1000 x 1.4 + 1100 x 1.50 (the broker's rate wins over BoC's 1.43) = 3050; dividend 2 x 1.45.
+	if !p.CostCAD.Equal(*d("3050")) || !p.IncomeCAD.Equal(*d("2.9")) || len(p.Flags) > 0 {
+		t.Fatalf("cost CAD %v income CAD %v flags %v", p.CostCAD, p.IncomeCAD, p.Flags)
+	}
+	// Without the BoC rate for the 6th the CAD cost stays unknown and flagged, as before.
+	p = find(t, ReplayWith(txs, Options{RateToCAD: boc(map[string]string{"USD 2025-01-08": "1.45"})}), "A", "U")
+	if p.CostCAD != nil || !hasFlag(p, FlagFXMissing, "b1") {
+		t.Fatalf("cost CAD %v flags %v", p.CostCAD, p.Flags)
+	}
+}
+
+func TestTransferWithoutValueIsEstimatedAtThatDaysClose(t *testing.T) {
+	// D-23, D-31: shares in without a value take the close of the transfer date (in the security's currency).
+	close := func(sec string, day time.Time) (*decimal.Decimal, string) {
+		if sec == "U" && day.Equal(time.Date(2025, 6, 2, 0, 0, 0, 0, time.UTC)) {
+			return d("20.5"), "USD"
+		}
+		return nil, ""
+	}
+	txs := []Tx{{ID: "in", AccountID: "A", Type: "TRANSFER_IN", TradeDate: day("2025-06-02"), SecurityID: "U",
+		Quantity: d("4"), NetAmount: decimal.Zero, Currency: "CAD"}}
+	opts := Options{Close: close, RateToCAD: boc(map[string]string{"USD 2025-06-02": "1.4"})}
+	p := find(t, ReplayWith(txs, opts), "A", "U")
+	if p.BookCurrency != "USD" || !p.Cost.Equal(*d("82")) || !p.CostCAD.Equal(*d("114.8")) ||
+		!hasFlag(p, FlagEstimatedCost, "in") || hasFlag(p, FlagCostUnknown, "in") {
+		t.Fatalf("book %s cost %v cad %v flags %v", p.BookCurrency, p.Cost, p.CostCAD, p.Flags)
+	}
+	// No close known: unknown, as before.
+	p = find(t, ReplayWith(txs, Options{}), "A", "U")
+	if p.Cost != nil || !hasFlag(p, FlagCostUnknown, "in") {
+		t.Fatalf("cost %v flags %v", p.Cost, p.Flags)
+	}
+}
+
+func TestCADRowOfAUSDBookUsesTheBookCurrencyRate(t *testing.T) {
+	// A sale settled in CAD of shares bought in USD: proceeds convert to USD with BoC USD of the sale date.
+	txs := []Tx{
+		{ID: "b", AccountID: "A", Type: "BUY", TradeDate: day("2025-01-06"), SecurityID: "U", Quantity: d("10"),
+			Price: d("100"), NetAmount: *d("-1000"), Currency: "USD", FXRateToCAD: d("1.4")},
+		{ID: "s", AccountID: "A", Type: "SELL", TradeDate: day("2025-02-06"), SecurityID: "U", Quantity: d("5"),
+			Price: d("150"), NetAmount: *d("750"), Currency: "CAD"},
+	}
+	p := find(t, ReplayWith(txs, Options{RateToCAD: boc(map[string]string{"USD 2025-02-06": "1.5"})}), "A", "U")
+	// 750 CAD = 500 USD; cost out 500 USD -> realized 0 USD; CAD: 750 - 700 = 50.
+	if !p.Realized.Equal(decimal.Zero) || !p.RealizedCAD.Equal(*d("50")) || len(p.Flags) > 0 {
+		t.Fatalf("realized %v CAD %v flags %v", p.Realized, p.RealizedCAD, p.Flags)
+	}
+}
